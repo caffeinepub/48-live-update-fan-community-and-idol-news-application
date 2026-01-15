@@ -89,6 +89,11 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface LatestArticleTable {
+    itemId: bigint;
+    itemType: string;
+    uploadDate: Time;
+}
 export interface Article {
     id: bigint;
     title: string;
@@ -188,6 +193,11 @@ export interface CreateArticleRequest {
     content: string;
     image?: ExternalBlob;
 }
+export interface TrendingTable {
+    itemId: bigint;
+    timestamp: Time;
+    itemType: string;
+}
 export interface Setlist {
     title: string;
     tracks: Array<string>;
@@ -199,6 +209,14 @@ export interface Member {
     team: string;
     generation: string;
     fullName: string;
+}
+export interface HomepageContent {
+    latestArticlesTable: Array<LatestArticleTable>;
+    rumors: Array<Rumor>;
+    articles: Array<Article>;
+    trending: Array<Trending>;
+    discussions: Array<Discussion>;
+    trendingTable: Array<TrendingTable>;
 }
 export interface UserProfile {
     name: string;
@@ -254,12 +272,7 @@ export interface backendInterface {
     getCommentsByContentId(contentId: bigint): Promise<Array<Comment>>;
     getDiscussion(id: bigint): Promise<Discussion>;
     getGroup(name: string): Promise<Group>;
-    getHomepageContent(): Promise<{
-        rumors: Array<Rumor>;
-        articles: Array<Article>;
-        trending: Array<Trending>;
-        discussions: Array<Discussion>;
-    }>;
+    getHomepageContent(): Promise<HomepageContent>;
     getRumor(id: bigint): Promise<Rumor>;
     getTrending(id: bigint): Promise<Trending>;
     getUnarchivedArticles(): Promise<Array<Article>>;
@@ -280,7 +293,7 @@ export interface backendInterface {
     updateGroup(group: Group): Promise<void>;
     updateRumor(id: bigint, title: string, content: string, status: Status): Promise<void>;
 }
-import type { Article as _Article, CreateArticleRequest as _CreateArticleRequest, CreateRumorRequest as _CreateRumorRequest, Discussion as _Discussion, ExternalBlob as _ExternalBlob, Rumor as _Rumor, Status as _Status, Time as _Time, Trending as _Trending, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { Article as _Article, CreateArticleRequest as _CreateArticleRequest, CreateRumorRequest as _CreateRumorRequest, Discussion as _Discussion, ExternalBlob as _ExternalBlob, HomepageContent as _HomepageContent, LatestArticleTable as _LatestArticleTable, Rumor as _Rumor, Status as _Status, Time as _Time, Trending as _Trending, TrendingTable as _TrendingTable, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -773,23 +786,18 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getHomepageContent(): Promise<{
-        rumors: Array<Rumor>;
-        articles: Array<Article>;
-        trending: Array<Trending>;
-        discussions: Array<Discussion>;
-    }> {
+    async getHomepageContent(): Promise<HomepageContent> {
         if (this.processError) {
             try {
                 const result = await this.actor.getHomepageContent();
-                return from_candid_record_n30(this.uploadFile, this.downloadFile, result);
+                return from_candid_HomepageContent_n30(this.uploadFile, this.downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getHomepageContent();
-            return from_candid_record_n30(this.uploadFile, this.downloadFile, result);
+            return from_candid_HomepageContent_n30(this.uploadFile, this.downloadFile, result);
         }
     }
     async getRumor(arg0: bigint): Promise<Rumor> {
@@ -991,14 +999,14 @@ export class Backend implements backendInterface {
     async updateArticle(arg0: bigint, arg1: string, arg2: ExternalBlob | null, arg3: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateArticle(arg0, arg1, await to_candid_opt_n31(this.uploadFile, this.downloadFile, arg2), arg3);
+                const result = await this.actor.updateArticle(arg0, arg1, await to_candid_opt_n32(this.uploadFile, this.downloadFile, arg2), arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateArticle(arg0, arg1, await to_candid_opt_n31(this.uploadFile, this.downloadFile, arg2), arg3);
+            const result = await this.actor.updateArticle(arg0, arg1, await to_candid_opt_n32(this.uploadFile, this.downloadFile, arg2), arg3);
             return result;
         }
     }
@@ -1064,6 +1072,9 @@ async function from_candid_Article_n18(uploadFile: (file: ExternalBlob) => Promi
 }
 async function from_candid_ExternalBlob_n21(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ExternalBlob): Promise<ExternalBlob> {
     return await downloadFile(value);
+}
+async function from_candid_HomepageContent_n30(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _HomepageContent): Promise<HomepageContent> {
+    return await from_candid_record_n31(uploadFile, downloadFile, value);
 }
 function from_candid_Rumor_n23(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Rumor): Rumor {
     return from_candid_record_n24(uploadFile, downloadFile, value);
@@ -1137,22 +1148,28 @@ function from_candid_record_n24(uploadFile: (file: ExternalBlob) => Promise<Uint
         archived: value.archived
     };
 }
-async function from_candid_record_n30(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+async function from_candid_record_n31(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    latestArticlesTable: Array<_LatestArticleTable>;
     rumors: Array<_Rumor>;
     articles: Array<_Article>;
     trending: Array<_Trending>;
     discussions: Array<_Discussion>;
+    trendingTable: Array<_TrendingTable>;
 }): Promise<{
+    latestArticlesTable: Array<LatestArticleTable>;
     rumors: Array<Rumor>;
     articles: Array<Article>;
     trending: Array<Trending>;
     discussions: Array<Discussion>;
+    trendingTable: Array<TrendingTable>;
 }> {
     return {
+        latestArticlesTable: value.latestArticlesTable,
         rumors: from_candid_vec_n22(uploadFile, downloadFile, value.rumors),
         articles: await from_candid_vec_n17(uploadFile, downloadFile, value.articles),
         trending: value.trending,
-        discussions: value.discussions
+        discussions: value.discussions,
+        trendingTable: value.trendingTable
     };
 }
 function from_candid_record_n5(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1212,7 +1229,7 @@ function to_candid__CaffeineStorageRefillInformation_n2(uploadFile: (file: Exter
 function to_candid_opt_n1(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation | null): [] | [__CaffeineStorageRefillInformation] {
     return value === null ? candid_none() : candid_some(to_candid__CaffeineStorageRefillInformation_n2(uploadFile, downloadFile, value));
 }
-async function to_candid_opt_n31(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob | null): Promise<[] | [_ExternalBlob]> {
+async function to_candid_opt_n32(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob | null): Promise<[] | [_ExternalBlob]> {
     return value === null ? candid_none() : candid_some(await to_candid_ExternalBlob_n12(uploadFile, downloadFile, value));
 }
 async function to_candid_record_n11(uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

@@ -78,6 +78,19 @@ export interface GroupNews {
   'content' : string,
   'date' : Time,
 }
+export interface HomepageContent {
+  'latestArticlesTable' : Array<LatestArticleTable>,
+  'rumors' : Array<Rumor>,
+  'articles' : Array<Article>,
+  'trending' : Array<Trending>,
+  'discussions' : Array<Discussion>,
+  'trendingTable' : Array<TrendingTable>,
+}
+export interface LatestArticleTable {
+  'itemId' : bigint,
+  'itemType' : string,
+  'uploadDate' : Time,
+}
 export interface Member {
   'bio' : string,
   'nickname' : string,
@@ -114,6 +127,11 @@ export interface Trending {
   'contentId' : bigint,
   'contentType' : string,
   'timestamp' : Time,
+}
+export interface TrendingTable {
+  'itemId' : bigint,
+  'timestamp' : Time,
+  'itemType' : string,
 }
 export interface UserProfile { 'name' : string, 'role' : string }
 export type UserRole = { 'admin' : null } |
@@ -175,15 +193,7 @@ export interface _SERVICE {
   'getCommentsByContentId' : ActorMethod<[bigint], Array<Comment>>,
   'getDiscussion' : ActorMethod<[bigint], Discussion>,
   'getGroup' : ActorMethod<[string], Group>,
-  'getHomepageContent' : ActorMethod<
-    [],
-    {
-      'rumors' : Array<Rumor>,
-      'articles' : Array<Article>,
-      'trending' : Array<Trending>,
-      'discussions' : Array<Discussion>,
-    }
-  >,
+  'getHomepageContent' : ActorMethod<[], HomepageContent>,
   'getRumor' : ActorMethod<[bigint], Rumor>,
   'getTrending' : ActorMethod<[bigint], Trending>,
   'getUnarchivedArticles' : ActorMethod<[], Array<Article>>,

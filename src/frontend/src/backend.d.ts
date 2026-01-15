@@ -14,6 +14,11 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
+export interface LatestArticleTable {
+    itemId: bigint;
+    itemType: string;
+    uploadDate: Time;
+}
 export interface Article {
     id: bigint;
     title: string;
@@ -106,6 +111,11 @@ export interface CreateArticleRequest {
     content: string;
     image?: ExternalBlob;
 }
+export interface TrendingTable {
+    itemId: bigint;
+    timestamp: Time;
+    itemType: string;
+}
 export interface Setlist {
     title: string;
     tracks: Array<string>;
@@ -117,6 +127,14 @@ export interface Member {
     team: string;
     generation: string;
     fullName: string;
+}
+export interface HomepageContent {
+    latestArticlesTable: Array<LatestArticleTable>;
+    rumors: Array<Rumor>;
+    articles: Array<Article>;
+    trending: Array<Trending>;
+    discussions: Array<Discussion>;
+    trendingTable: Array<TrendingTable>;
 }
 export interface UserProfile {
     name: string;
@@ -161,12 +179,7 @@ export interface backendInterface {
     getCommentsByContentId(contentId: bigint): Promise<Array<Comment>>;
     getDiscussion(id: bigint): Promise<Discussion>;
     getGroup(name: string): Promise<Group>;
-    getHomepageContent(): Promise<{
-        rumors: Array<Rumor>;
-        articles: Array<Article>;
-        trending: Array<Trending>;
-        discussions: Array<Discussion>;
-    }>;
+    getHomepageContent(): Promise<HomepageContent>;
     getRumor(id: bigint): Promise<Rumor>;
     getTrending(id: bigint): Promise<Trending>;
     getUnarchivedArticles(): Promise<Array<Article>>;

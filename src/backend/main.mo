@@ -1,9 +1,9 @@
 import Array "mo:core/Array";
 import Order "mo:core/Order";
+import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
-import Runtime "mo:core/Runtime";
 import Nat "mo:core/Nat";
 import Time "mo:core/Time";
 import Principal "mo:core/Principal";
@@ -11,9 +11,7 @@ import MixinAuthorization "authorization/MixinAuthorization";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -174,6 +172,27 @@ actor {
     title : Text;
     category : Text;
     content : Text;
+  };
+
+  public type HomepageContent = {
+    articles : [Article];
+    rumors : [Rumor];
+    discussions : [Discussion];
+    trending : [Trending];
+    trendingTable : [TrendingTable];
+    latestArticlesTable : [LatestArticleTable];
+  };
+
+  public type TrendingTable = {
+    itemType : Text; // "Update", "Rumor", or "Discuss"
+    itemId : Nat;
+    timestamp : Time.Time;
+  };
+
+  public type LatestArticleTable = {
+    itemType : Text; // "Update", "Rumor", or "Discuss"
+    itemId : Nat;
+    uploadDate : Time.Time;
   };
 
   var articleIdCounter = 0;
@@ -560,22 +579,53 @@ actor {
     groups.values().toArray();
   };
 
-  public query func getHomepageContent() : async {
-    articles : [Article];
-    rumors : [Rumor];
-    discussions : [Discussion];
-    trending : [Trending];
-  } {
-    let allArticles = articles.values().toArray().sort();
-    let allRumors = rumors.values().toArray().sort();
-    let allDiscussions = discussions.values().toArray().sort();
+  public query func getHomepageContent() : async HomepageContent {
+    let allArticles = articles.values().toArray().filter(func(article) { not article.archived }).sort();
+    let allRumors = rumors.values().toArray().filter(func(rumor) { not rumor.archived }).sort();
+    let allDiscussions = discussions.values().toArray().filter(func(discussion) { not discussion.archived }).sort();
     let allTrending = trending.values().toArray();
+
+    let trendingTable = allTrending.map(
+      func(trend) {
+        { itemType = trend.contentType; itemId = trend.contentId; timestamp = trend.timestamp };
+      }
+    );
+
+    let latestArticlesUnsorted = allArticles.map(
+      func(article) {
+        { itemType = "Update"; itemId = article.id; uploadDate = article.date };
+      }
+    );
+
+    let allLatest = latestArticlesUnsorted.concat(
+      allRumors.map(
+        func(rumor) {
+          { itemType = "Rumor"; itemId = rumor.id; uploadDate = rumor.date };
+        }
+      )
+    ).concat(
+      allDiscussions.map(
+        func(discussion) {
+          { itemType = "Discuss"; itemId = discussion.id; uploadDate = discussion.timestamp };
+        }
+      )
+    );
+
+    func compareLatestArticles(a : LatestArticleTable, b : LatestArticleTable) : Order.Order {
+      if (a.uploadDate < b.uploadDate) { #less } else if (a.uploadDate > b.uploadDate) { #greater } else {
+        #equal;
+      };
+    };
+
+    let latestArticlesTable = allLatest.sort(compareLatestArticles);
 
     {
       articles = allArticles;
       rumors = allRumors;
       discussions = allDiscussions;
       trending = allTrending;
+      trendingTable;
+      latestArticlesTable;
     };
   };
 

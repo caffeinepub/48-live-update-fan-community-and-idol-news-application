@@ -135,6 +135,24 @@ export const Trending = IDL.Record({
   'timestamp' : Time,
 });
 export const UserProfile = IDL.Record({ 'name' : IDL.Text, 'role' : IDL.Text });
+export const LatestArticleTable = IDL.Record({
+  'itemId' : IDL.Nat,
+  'itemType' : IDL.Text,
+  'uploadDate' : Time,
+});
+export const TrendingTable = IDL.Record({
+  'itemId' : IDL.Nat,
+  'timestamp' : Time,
+  'itemType' : IDL.Text,
+});
+export const HomepageContent = IDL.Record({
+  'latestArticlesTable' : IDL.Vec(LatestArticleTable),
+  'rumors' : IDL.Vec(Rumor),
+  'articles' : IDL.Vec(Article),
+  'trending' : IDL.Vec(Trending),
+  'discussions' : IDL.Vec(Discussion),
+  'trendingTable' : IDL.Vec(TrendingTable),
+});
 
 export const idlService = IDL.Service({
   '_caffeineStorageBlobIsLive' : IDL.Func(
@@ -196,18 +214,7 @@ export const idlService = IDL.Service({
   'getCommentsByContentId' : IDL.Func([IDL.Nat], [IDL.Vec(Comment)], ['query']),
   'getDiscussion' : IDL.Func([IDL.Nat], [Discussion], ['query']),
   'getGroup' : IDL.Func([IDL.Text], [Group], ['query']),
-  'getHomepageContent' : IDL.Func(
-      [],
-      [
-        IDL.Record({
-          'rumors' : IDL.Vec(Rumor),
-          'articles' : IDL.Vec(Article),
-          'trending' : IDL.Vec(Trending),
-          'discussions' : IDL.Vec(Discussion),
-        }),
-      ],
-      ['query'],
-    ),
+  'getHomepageContent' : IDL.Func([], [HomepageContent], ['query']),
   'getRumor' : IDL.Func([IDL.Nat], [Rumor], ['query']),
   'getTrending' : IDL.Func([IDL.Nat], [Trending], ['query']),
   'getUnarchivedArticles' : IDL.Func([], [IDL.Vec(Article)], ['query']),
@@ -371,6 +378,24 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : Time,
   });
   const UserProfile = IDL.Record({ 'name' : IDL.Text, 'role' : IDL.Text });
+  const LatestArticleTable = IDL.Record({
+    'itemId' : IDL.Nat,
+    'itemType' : IDL.Text,
+    'uploadDate' : Time,
+  });
+  const TrendingTable = IDL.Record({
+    'itemId' : IDL.Nat,
+    'timestamp' : Time,
+    'itemType' : IDL.Text,
+  });
+  const HomepageContent = IDL.Record({
+    'latestArticlesTable' : IDL.Vec(LatestArticleTable),
+    'rumors' : IDL.Vec(Rumor),
+    'articles' : IDL.Vec(Article),
+    'trending' : IDL.Vec(Trending),
+    'discussions' : IDL.Vec(Discussion),
+    'trendingTable' : IDL.Vec(TrendingTable),
+  });
   
   return IDL.Service({
     '_caffeineStorageBlobIsLive' : IDL.Func(
@@ -440,18 +465,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getDiscussion' : IDL.Func([IDL.Nat], [Discussion], ['query']),
     'getGroup' : IDL.Func([IDL.Text], [Group], ['query']),
-    'getHomepageContent' : IDL.Func(
-        [],
-        [
-          IDL.Record({
-            'rumors' : IDL.Vec(Rumor),
-            'articles' : IDL.Vec(Article),
-            'trending' : IDL.Vec(Trending),
-            'discussions' : IDL.Vec(Discussion),
-          }),
-        ],
-        ['query'],
-      ),
+    'getHomepageContent' : IDL.Func([], [HomepageContent], ['query']),
     'getRumor' : IDL.Func([IDL.Nat], [Rumor], ['query']),
     'getTrending' : IDL.Func([IDL.Nat], [Trending], ['query']),
     'getUnarchivedArticles' : IDL.Func([], [IDL.Vec(Article)], ['query']),

@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Clock, TrendingUp, MessageSquare, Sparkles, ImageOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -30,6 +31,8 @@ export default function HomePage() {
   const rumors = data?.rumors || [];
   const discussions = data?.discussions || [];
   const trending = data?.trending || [];
+  const trendingTable = data?.trendingTable || [];
+  const latestArticlesTable = data?.latestArticlesTable || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -53,6 +56,56 @@ export default function HomePage() {
     }
   };
 
+  const getItemTypeLabel = (type: string) => {
+    switch (type) {
+      case 'Update':
+        return 'Berita';
+      case 'Rumor':
+        return 'Rumor';
+      case 'Discuss':
+        return 'Diskusi';
+      default:
+        return type;
+    }
+  };
+
+  const getItemTypeBadgeClass = (type: string) => {
+    switch (type) {
+      case 'Update':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'Rumor':
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'Discuss':
+        return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const handleTableRowClick = (itemType: string, itemId: bigint) => {
+    if (itemType === 'Update') {
+      navigate({ to: '/news/$articleId', params: { articleId: itemId.toString() } });
+    } else if (itemType === 'Rumor') {
+      navigate({ to: '/rumors/$rumorId', params: { rumorId: itemId.toString() } });
+    } else if (itemType === 'Discuss') {
+      navigate({ to: '/discuss/$discussionId', params: { discussionId: itemId.toString() } });
+    }
+  };
+
+  const getItemTitle = (itemType: string, itemId: bigint) => {
+    if (itemType === 'Update') {
+      const article = articles.find((a) => a.id === itemId);
+      return article?.title || 'Tidak ditemukan';
+    } else if (itemType === 'Rumor') {
+      const rumor = rumors.find((r) => r.id === itemId);
+      return rumor?.title || 'Tidak ditemukan';
+    } else if (itemType === 'Discuss') {
+      const discussion = discussions.find((d) => d.id === itemId);
+      return discussion?.title || 'Tidak ditemukan';
+    }
+    return 'Tidak ditemukan';
+  };
+
   return (
     <div className="min-h-screen">
       {/* Hero Banner */}
@@ -60,9 +113,9 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-secondary/30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,oklch(var(--primary)/10%),transparent_50%)]" />
         <img
-          src="/assets/generated/hero-banner-futuristic.dim_1200x400.png"
+          src="/assets/IMG_7148.jpeg"
           alt="48 LIVE UPDATE"
-          className="h-64 w-full object-cover opacity-30 md:h-96"
+          className="h-64 w-full object-cover opacity-40 md:h-96"
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center space-y-4 px-4">
@@ -74,13 +127,115 @@ export default function HomePage() {
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4 text-accent animate-pulse" />
-              <span>Futuristic Experience</span>
+              <span>Wota Experience</span>
             </div>
           </div>
         </div>
       </section>
 
       <div className="container mx-auto px-4 py-12">
+        {/* Trending Table */}
+        {trendingTable.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="p-2 rounded-lg glass neon-glow">
+                <TrendingUp className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Trending Terbaru
+              </h2>
+            </div>
+            <Card className="glass-strong border-primary/20 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/50 hover:bg-transparent">
+                        <TableHead className="text-primary font-semibold">Tipe</TableHead>
+                        <TableHead className="text-primary font-semibold">Judul</TableHead>
+                        <TableHead className="text-primary font-semibold text-right">Waktu</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {trendingTable
+                        .sort((a, b) => Number(b.timestamp - a.timestamp))
+                        .slice(0, 10)
+                        .map((item, index) => (
+                          <TableRow
+                            key={index}
+                            className="border-border/30 hover:bg-primary/5 cursor-pointer transition-smooth"
+                            onClick={() => handleTableRowClick(item.itemType, item.itemId)}
+                          >
+                            <TableCell>
+                              <Badge className={`${getItemTypeBadgeClass(item.itemType)} border`}>
+                                {getItemTypeLabel(item.itemType)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{getItemTitle(item.itemType, item.itemId)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground text-sm">
+                              {formatDistanceToNow(Number(item.timestamp) / 1000000, { addSuffix: true, locale: id })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
+        {/* Latest Articles Table */}
+        {latestArticlesTable.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="p-2 rounded-lg glass neon-glow">
+                <Clock className="h-6 w-6 text-accent" />
+              </div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Konten Terbaru
+              </h2>
+            </div>
+            <Card className="glass-strong border-accent/20 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/50 hover:bg-transparent">
+                        <TableHead className="text-accent font-semibold">Tipe</TableHead>
+                        <TableHead className="text-accent font-semibold">Judul</TableHead>
+                        <TableHead className="text-accent font-semibold text-right">Tanggal Upload</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {latestArticlesTable
+                        .sort((a, b) => Number(b.uploadDate - a.uploadDate))
+                        .slice(0, 15)
+                        .map((item, index) => (
+                          <TableRow
+                            key={index}
+                            className="border-border/30 hover:bg-accent/5 cursor-pointer transition-smooth"
+                            onClick={() => handleTableRowClick(item.itemType, item.itemId)}
+                          >
+                            <TableCell>
+                              <Badge className={`${getItemTypeBadgeClass(item.itemType)} border`}>
+                                {getItemTypeLabel(item.itemType)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{getItemTitle(item.itemType, item.itemId)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground text-sm">
+                              {formatDistanceToNow(Number(item.uploadDate) / 1000000, { addSuffix: true, locale: id })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
         {/* Trending Section */}
         {trending.length > 0 && (
           <section className="mb-12">

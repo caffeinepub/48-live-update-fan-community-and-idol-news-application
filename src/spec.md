@@ -161,10 +161,15 @@ Comprehensive admin interface for "48 LIVE ADMIN" users featuring:
 
 ## Homepage & Navigation
 - Modern futuristic news portal layout on homepage with glassmorphism hero section
-- Trending section featuring admin-selected posts from any segment with neon-accented cards
+- **Hero banner displays "Wota Experience"** instead of "Futuristic Experience"
+- **Hero banner uses custom concert image** showing 48 Group performance with colorful stage lighting
+- **Trending Table** at the top of homepage showing latest trending items with their type (Update, Rumor, or Discuss), sorted by newest first
+- **Latest Articles Table** displaying most recent entries from Updates, Rumors, and Discussions combined, sorted by upload date in descending order
+- Both tables styled with futuristic glassmorphism design and neon accents
 - Navigation menu with futuristic styling and smooth hover transitions
 - Theme toggle switch prominently displayed in header
 - Responsive design with consistent futuristic aesthetic
+- **Footer displays "© 2026. 48 LIVE UPDATE Indonesia"**
 
 ## Backend Data Storage
 - User accounts and authentication data
@@ -189,6 +194,8 @@ Comprehensive admin interface for "48 LIVE ADMIN" users featuring:
 - **deleteGroup**: Permanently delete group and all associated data
 - **getGroup**: Retrieve specific group data for editing
 - **getAllGroups**: Retrieve list of all groups for selection dropdown
+- **getTrendingItems**: Retrieve trending items across all content types for homepage table
+- **getLatestContent**: Retrieve latest articles, rumors, and discussions combined for homepage table
 
 ## Key Features
 - Comment system available on all content types with futuristic styling
@@ -208,3 +215,4 @@ Comprehensive admin interface for "48 LIVE ADMIN" users featuring:
 - **Real-time synchronization** between admin management and public group pages
 - **Enhanced visual feedback** for all admin operations
 - **Theme-aware creation interfaces** supporting both dark and light modes
+- **Homepage data tables** displaying trending and latest content with futuristic styling
