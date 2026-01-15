@@ -1,2 +1,8 @@
-# 48-live-update-fan-community-and-idol-news-application
-Exported from Caffeine project: 48 LIVE UPDATE   Fan Community and Idol News Application
+## 48 LIVE UPDATE   Fan Community and Idol News Application
+
+To run app build and run docker image:
+
+```
+docker build -t app .
+docker run -it --network host app
+```

@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --radius: 1rem;
+        /* Light mode - Futuristic theme with neon accents */
+        --background: 0.98 0.01 240;
+        --foreground: 0.15 0.02 260;
+        --card: 0.99 0.01 240 / 60%;
+        --card-foreground: 0.15 0.02 260;
+        --popover: 0.99 0.01 240 / 95%;
+        --popover-foreground: 0.15 0.02 260;
+        --primary: 0.65 0.25 300;
+        --primary-foreground: 0.99 0 0;
+        --secondary: 0.70 0.22 200;
+        --secondary-foreground: 0.99 0 0;
+        --muted: 0.95 0.02 260 / 50%;
+        --muted-foreground: 0.50 0.03 260;
+        --accent: 0.75 0.28 330;
+        --accent-foreground: 0.99 0 0;
+        --destructive: 0.60 0.25 20;
+        --destructive-foreground: 0.99 0 0;
+        --border: 0.90 0.03 260 / 30%;
+        --input: 0.92 0.02 260 / 40%;
+        --ring: 0.65 0.25 300;
+        --chart-1: 0.65 0.25 300;
+        --chart-2: 0.70 0.22 200;
+        --chart-3: 0.75 0.28 330;
+        --chart-4: 0.60 0.20 180;
+        --chart-5: 0.70 0.24 270;
+        --sidebar: 0.98 0.01 240 / 80%;
+        --sidebar-foreground: 0.15 0.02 260;
+        --sidebar-primary: 0.65 0.25 300;
+        --sidebar-primary-foreground: 0.99 0 0;
+        --sidebar-accent: 0.95 0.02 260 / 50%;
+        --sidebar-accent-foreground: 0.15 0.02 260;
+        --sidebar-border: 0.90 0.03 260 / 30%;
+        --sidebar-ring: 0.65 0.25 300;
+        
+        /* Futuristic neon colors */
+        --neon-cyan: 0.75 0.20 200;
+        --neon-magenta: 0.70 0.28 330;
+        --neon-purple: 0.65 0.25 300;
+        --neon-blue: 0.60 0.22 260;
+        --glass-bg: 0.99 0.01 240 / 40%;
+        --glass-border: 0.90 0.03 260 / 20%;
+    }
+
+    .dark {
+        /* Dark mode - Futuristic cyberpunk theme */
+        --background: 0.12 0.02 260;
+        --foreground: 0.98 0.01 240;
+        --card: 0.18 0.03 260 / 60%;
+        --card-foreground: 0.98 0.01 240;
+        --popover: 0.15 0.02 260 / 95%;
+        --popover-foreground: 0.98 0.01 240;
+        --primary: 0.75 0.28 300;
+        --primary-foreground: 0.12 0.02 260;
+        --secondary: 0.70 0.25 200;
+        --secondary-foreground: 0.12 0.02 260;
+        --muted: 0.20 0.03 260 / 50%;
+        --muted-foreground: 0.65 0.03 260;
+        --accent: 0.80 0.30 330;
+        --accent-foreground: 0.12 0.02 260;
+        --destructive: 0.65 0.28 20;
+        --destructive-foreground: 0.98 0 0;
+        --border: 0.30 0.05 260 / 30%;
+        --input: 0.25 0.04 260 / 40%;
+        --ring: 0.75 0.28 300;
+        --chart-1: 0.75 0.28 300;
+        --chart-2: 0.70 0.25 200;
+        --chart-3: 0.80 0.30 330;
+        --chart-4: 0.65 0.23 180;
+        --chart-5: 0.72 0.26 270;
+        --sidebar: 0.15 0.02 260 / 80%;
+        --sidebar-foreground: 0.98 0.01 240;
+        --sidebar-primary: 0.75 0.28 300;
+        --sidebar-primary-foreground: 0.12 0.02 260;
+        --sidebar-accent: 0.20 0.03 260 / 50%;
+        --sidebar-accent-foreground: 0.98 0.01 240;
+        --sidebar-border: 0.30 0.05 260 / 30%;
+        --sidebar-ring: 0.75 0.28 300;
+        
+        /* Futuristic neon colors for dark mode */
+        --neon-cyan: 0.80 0.25 200;
+        --neon-magenta: 0.75 0.30 330;
+        --neon-purple: 0.75 0.28 300;
+        --neon-blue: 0.70 0.25 260;
+        --glass-bg: 0.18 0.03 260 / 40%;
+        --glass-border: 0.40 0.06 260 / 20%;
+    }
+
+    * {
+        @apply border-border;
+    }
+    
+    body {
+        @apply bg-background text-foreground;
+        font-feature-settings: "rlig" 1, "calt" 1;
+    }
+}
+
+@layer utilities {
+    /* Glassmorphism utilities */
+    .glass {
+        background: oklch(var(--glass-bg));
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid oklch(var(--glass-border));
+    }
+    
+    .glass-strong {
+        background: oklch(var(--card));
+        backdrop-filter: blur(20px) saturate(200%);
+        -webkit-backdrop-filter: blur(20px) saturate(200%);
+        border: 1px solid oklch(var(--border));
+    }
+    
+    /* Neon glow effects */
+    .neon-glow {
+        box-shadow: 0 0 20px oklch(var(--primary) / 30%),
+                    0 0 40px oklch(var(--primary) / 20%),
+                    0 0 60px oklch(var(--primary) / 10%);
+    }
+    
+    .neon-glow-hover {
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .neon-glow-hover:hover {
+        box-shadow: 0 0 25px oklch(var(--primary) / 40%),
+                    0 0 50px oklch(var(--primary) / 30%),
+                    0 0 75px oklch(var(--primary) / 20%);
+    }
+    
+    .neon-text {
+        text-shadow: 0 0 10px oklch(var(--primary) / 50%),
+                     0 0 20px oklch(var(--primary) / 30%),
+                     0 0 30px oklch(var(--primary) / 20%);
+    }
+    
+    /* Gradient backgrounds */
+    .gradient-primary {
+        background: linear-gradient(135deg, 
+            oklch(var(--primary)) 0%, 
+            oklch(var(--accent)) 100%);
+    }
+    
+    .gradient-secondary {
+        background: linear-gradient(135deg, 
+            oklch(var(--secondary)) 0%, 
+            oklch(var(--primary)) 100%);
+    }
+    
+    .gradient-neon {
+        background: linear-gradient(135deg,
+            oklch(var(--neon-cyan)) 0%,
+            oklch(var(--neon-purple)) 50%,
+            oklch(var(--neon-magenta)) 100%);
+    }
+    
+    /* Animated gradient border */
+    .animated-border {
+        position: relative;
+        background: oklch(var(--card));
+        border-radius: var(--radius);
+    }
+    
+    .animated-border::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: var(--radius);
+        padding: 2px;
+        background: linear-gradient(45deg,
+            oklch(var(--primary)),
+            oklch(var(--secondary)),
+            oklch(var(--accent)),
+            oklch(var(--primary)));
+        background-size: 300% 300%;
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: gradient-rotate 4s linear infinite;
+    }
+    
+    @keyframes gradient-rotate {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* Smooth transitions */
+    .transition-smooth {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .transition-glow {
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+}
+
