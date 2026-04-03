@@ -1,30 +1,79 @@
-import { useState } from 'react';
-import { useGetAllGroups, useUpdateGroup, useCreateGroup, useDeleteGroup } from '../../hooks/useQueries';
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Skeleton } from '../ui/skeleton';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { toast } from 'sonner';
-import { Save, X, Plus, Trash2, Calendar, MapPin, Users as UsersIcon, Music, Newspaper, CalendarDays, PlusCircle } from 'lucide-react';
-import type { Group, Member, Schedule, GroupNews, Single, Album, Setlist } from '../../backend';
-import { format } from 'date-fns';
+import { format } from "date-fns";
+import {
+  Calendar,
+  CalendarDays,
+  Edit3,
+  MapPin,
+  Music,
+  Newspaper,
+  Plus,
+  PlusCircle,
+  Save,
+  Trash2,
+  Users as UsersIcon,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import type {
+  Album,
+  Group,
+  GroupNews,
+  Member,
+  ScheduleWithGroup,
+  Setlist,
+  Single,
+} from "../../backend";
+import {
+  useCreateGroup,
+  useDeleteGroup,
+  useGetAllGroups,
+  useRenameGroup,
+  useUpdateGroup,
+} from "../../hooks/useQueries";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Skeleton } from "../ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 export default function AdminGroups() {
   const { data: groups, isLoading } = useGetAllGroups();
   const updateGroup = useUpdateGroup();
   const createGroup = useCreateGroup();
   const deleteGroup = useDeleteGroup();
+  const renameGroup = useRenameGroup();
 
-  const [selectedGroupName, setSelectedGroupName] = useState<string>('');
+  const [selectedGroupName, setSelectedGroupName] = useState<string>("");
   const [editedGroup, setEditedGroup] = useState<Group | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
+  // Rename state
+  const [renameGroupName, setRenameGroupName] = useState<string>("");
+  const [newGroupName, setNewGroupName] = useState<string>("");
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+
   const handleSelectGroup = (groupName: string) => {
-    const group = groups?.find(g => g.name === groupName);
+    const group = groups?.find((g) => g.name === groupName);
     if (group) {
       setSelectedGroupName(groupName);
       setEditedGroup({ ...group });
@@ -34,10 +83,10 @@ export default function AdminGroups() {
 
   const handleCreateNew = () => {
     const newGroup: Group = {
-      name: '',
+      name: "",
       formationDate: BigInt(Date.now() * 1000000),
-      baseLocation: '',
-      theaterLocation: '',
+      baseLocation: "",
+      theaterLocation: "",
       memberCount: BigInt(0),
       members: [],
       schedules: [],
@@ -47,9 +96,10 @@ export default function AdminGroups() {
         albums: [],
       },
       setlists: [],
+      active: false,
     };
     setEditedGroup(newGroup);
-    setSelectedGroupName('');
+    setSelectedGroupName("");
     setIsCreatingNew(true);
   };
 
@@ -57,22 +107,33 @@ export default function AdminGroups() {
     if (!editedGroup) return;
 
     if (!editedGroup.name.trim()) {
-      toast.error('Nama grup harus diisi');
+      toast.error("Nama grup harus diisi");
+      return;
+    }
+
+    // Check for duplicate group name when creating
+    if (isCreatingNew && groups?.some((g) => g.name === editedGroup.name)) {
+      toast.error("Nama grup sudah digunakan");
       return;
     }
 
     try {
       if (isCreatingNew) {
         await createGroup.mutateAsync(editedGroup);
-        toast.success('Grup berhasil dibuat');
+        toast.success("Grup berhasil dibuat");
         setIsCreatingNew(false);
         setSelectedGroupName(editedGroup.name);
       } else {
         await updateGroup.mutateAsync(editedGroup);
-        toast.success('Perubahan berhasil disimpan');
+        toast.success("Perubahan berhasil disimpan");
       }
-    } catch (error) {
-      toast.error(isCreatingNew ? 'Gagal membuat grup' : 'Gagal menyimpan perubahan');
+    } catch (error: any) {
+      const errorMessage = error?.message || "Terjadi kesalahan";
+      toast.error(
+        isCreatingNew
+          ? `Gagal membuat grup: ${errorMessage}`
+          : `Gagal menyimpan perubahan: ${errorMessage}`,
+      );
       console.error(error);
     }
   };
@@ -82,12 +143,13 @@ export default function AdminGroups() {
 
     try {
       await deleteGroup.mutateAsync(editedGroup.name);
-      toast.success('Grup berhasil dihapus');
+      toast.success("Grup berhasil dihapus");
       setEditedGroup(null);
-      setSelectedGroupName('');
+      setSelectedGroupName("");
       setIsCreatingNew(false);
-    } catch (error) {
-      toast.error('Gagal menghapus grup');
+    } catch (error: any) {
+      const errorMessage = error?.message || "Terjadi kesalahan";
+      toast.error(`Gagal menghapus grup: ${errorMessage}`);
       console.error(error);
     }
   };
@@ -97,10 +159,59 @@ export default function AdminGroups() {
       setEditedGroup(null);
       setIsCreatingNew(false);
     } else {
-      const group = groups?.find(g => g.name === selectedGroupName);
+      const group = groups?.find((g) => g.name === selectedGroupName);
       if (group) {
         setEditedGroup({ ...group });
       }
+    }
+  };
+
+  const handleRenameClick = () => {
+    setRenameGroupName("");
+    setNewGroupName("");
+    setShowRenameDialog(true);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!renameGroupName || !newGroupName.trim()) {
+      toast.error("Pilih grup dan masukkan nama baru");
+      return;
+    }
+
+    if (renameGroupName === newGroupName) {
+      toast.error("Nama baru harus berbeda dari nama lama");
+      return;
+    }
+
+    if (groups?.some((g) => g.name === newGroupName)) {
+      toast.error("Nama grup sudah digunakan");
+      return;
+    }
+
+    try {
+      await renameGroup.mutateAsync({
+        oldName: renameGroupName,
+        newName: newGroupName,
+      });
+      toast.success(
+        `Grup berhasil diubah namanya dari "${renameGroupName}" menjadi "${newGroupName}"`,
+      );
+      setShowRenameDialog(false);
+      setRenameGroupName("");
+      setNewGroupName("");
+
+      // Update selected group if it was the renamed one
+      if (selectedGroupName === renameGroupName) {
+        setSelectedGroupName(newGroupName);
+        const group = groups?.find((g) => g.name === renameGroupName);
+        if (group) {
+          setEditedGroup({ ...group, name: newGroupName });
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || "Terjadi kesalahan";
+      toast.error(`Gagal mengubah nama grup: ${errorMessage}`);
+      console.error(error);
     }
   };
 
@@ -108,12 +219,12 @@ export default function AdminGroups() {
   const handleAddMember = () => {
     if (!editedGroup) return;
     const newMember: Member = {
-      fullName: '',
-      nickname: '',
+      fullName: "",
+      nickname: "",
       birthdate: BigInt(Date.now() * 1000000),
-      generation: '',
-      team: '',
-      bio: '',
+      generation: "",
+      team: "",
+      bio: "",
     };
     setEditedGroup({
       ...editedGroup,
@@ -122,7 +233,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateMember = (index: number, field: keyof Member, value: string | bigint) => {
+  const handleUpdateMember = (
+    index: number,
+    field: keyof Member,
+    value: string | bigint,
+  ) => {
     if (!editedGroup) return;
     const updatedMembers = [...editedGroup.members];
     updatedMembers[index] = { ...updatedMembers[index], [field]: value };
@@ -142,10 +257,11 @@ export default function AdminGroups() {
   // Schedule management
   const handleAddSchedule = () => {
     if (!editedGroup) return;
-    const newSchedule: Schedule = {
+    const newSchedule: ScheduleWithGroup = {
       date: BigInt(Date.now() * 1000000),
-      event: '',
-      location: '',
+      event: "",
+      location: "",
+      groupName: editedGroup.name,
     };
     setEditedGroup({
       ...editedGroup,
@@ -153,7 +269,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateSchedule = (index: number, field: keyof Schedule, value: string | bigint) => {
+  const handleUpdateSchedule = (
+    index: number,
+    field: keyof ScheduleWithGroup,
+    value: string | bigint,
+  ) => {
     if (!editedGroup) return;
     const updatedSchedules = [...editedGroup.schedules];
     updatedSchedules[index] = { ...updatedSchedules[index], [field]: value };
@@ -173,8 +293,8 @@ export default function AdminGroups() {
     if (!editedGroup) return;
     const newNews: GroupNews = {
       id: BigInt(editedGroup.news.length),
-      title: '',
-      content: '',
+      title: "",
+      content: "",
       date: BigInt(Date.now() * 1000000),
     };
     setEditedGroup({
@@ -183,7 +303,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateNews = (index: number, field: keyof GroupNews, value: string | bigint) => {
+  const handleUpdateNews = (
+    index: number,
+    field: keyof GroupNews,
+    value: string | bigint,
+  ) => {
     if (!editedGroup) return;
     const updatedNews = [...editedGroup.news];
     updatedNews[index] = { ...updatedNews[index], [field]: value };
@@ -202,9 +326,9 @@ export default function AdminGroups() {
   const handleAddSingle = () => {
     if (!editedGroup) return;
     const newSingle: Single = {
-      title: '',
+      title: "",
       releaseDate: BigInt(Date.now() * 1000000),
-      tracks: [''],
+      tracks: [""],
     };
     setEditedGroup({
       ...editedGroup,
@@ -215,7 +339,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateSingle = (index: number, field: keyof Single, value: string | bigint | string[]) => {
+  const handleUpdateSingle = (
+    index: number,
+    field: keyof Single,
+    value: string | bigint | string[],
+  ) => {
     if (!editedGroup) return;
     const updatedSingles = [...editedGroup.discography.singles];
     updatedSingles[index] = { ...updatedSingles[index], [field]: value };
@@ -240,9 +368,9 @@ export default function AdminGroups() {
   const handleAddAlbum = () => {
     if (!editedGroup) return;
     const newAlbum: Album = {
-      title: '',
+      title: "",
       releaseDate: BigInt(Date.now() * 1000000),
-      tracks: [''],
+      tracks: [""],
     };
     setEditedGroup({
       ...editedGroup,
@@ -253,7 +381,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateAlbum = (index: number, field: keyof Album, value: string | bigint | string[]) => {
+  const handleUpdateAlbum = (
+    index: number,
+    field: keyof Album,
+    value: string | bigint | string[],
+  ) => {
     if (!editedGroup) return;
     const updatedAlbums = [...editedGroup.discography.albums];
     updatedAlbums[index] = { ...updatedAlbums[index], [field]: value };
@@ -278,8 +410,8 @@ export default function AdminGroups() {
   const handleAddSetlist = () => {
     if (!editedGroup) return;
     const newSetlist: Setlist = {
-      title: '',
-      tracks: [''],
+      title: "",
+      tracks: [""],
     };
     setEditedGroup({
       ...editedGroup,
@@ -287,7 +419,11 @@ export default function AdminGroups() {
     });
   };
 
-  const handleUpdateSetlist = (index: number, field: keyof Setlist, value: string | string[]) => {
+  const handleUpdateSetlist = (
+    index: number,
+    field: keyof Setlist,
+    value: string | string[],
+  ) => {
     if (!editedGroup) return;
     const updatedSetlists = [...editedGroup.setlists];
     updatedSetlists[index] = { ...updatedSetlists[index], [field]: value };
@@ -316,12 +452,19 @@ export default function AdminGroups() {
       {/* Group Selection and Create */}
       <Card className="glass-strong border-primary/20 hover:neon-glow-hover transition-glow">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <Label htmlFor="group-select" className="mb-2 block text-lg font-semibold">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex-1 min-w-[250px]">
+              <Label
+                htmlFor="group-select"
+                className="mb-2 block text-lg font-semibold"
+              >
                 Pilih Grup untuk Diedit
               </Label>
-              <Select value={selectedGroupName} onValueChange={handleSelectGroup} disabled={isCreatingNew}>
+              <Select
+                value={selectedGroupName}
+                onValueChange={handleSelectGroup}
+                disabled={isCreatingNew}
+              >
                 <SelectTrigger id="group-select" className="glass-input">
                   <SelectValue placeholder="Pilih grup..." />
                 </SelectTrigger>
@@ -334,7 +477,15 @@ export default function AdminGroups() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
+              <Button
+                onClick={handleRenameClick}
+                disabled={isCreatingNew}
+                className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+              >
+                <Edit3 className="h-5 w-5" />
+                Ubah Nama Grup
+              </Button>
               <Button
                 onClick={handleCreateNew}
                 disabled={isCreatingNew}
@@ -348,13 +499,73 @@ export default function AdminGroups() {
         </CardContent>
       </Card>
 
+      {/* Rename Dialog */}
+      <AlertDialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <AlertDialogContent className="glass-strong border-primary/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-primary">
+              Ubah Nama Grup
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Pilih grup yang ingin diubah namanya dan masukkan nama baru. Semua
+              data grup (member, jadwal, berita, diskografi, setlist) akan tetap
+              terjaga.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="rename-group-select">Pilih Grup</Label>
+              <Select
+                value={renameGroupName}
+                onValueChange={setRenameGroupName}
+              >
+                <SelectTrigger id="rename-group-select" className="glass-input">
+                  <SelectValue placeholder="Pilih grup..." />
+                </SelectTrigger>
+                <SelectContent className="glass-strong">
+                  {groups?.map((group) => (
+                    <SelectItem key={group.name} value={group.name}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new-group-name">Nama Baru</Label>
+              <Input
+                id="new-group-name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Masukkan nama baru..."
+                className="glass-input"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="glass">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRenameConfirm}
+              disabled={
+                renameGroup.isPending ||
+                !renameGroupName ||
+                !newGroupName.trim()
+              }
+              className="gradient-primary hover:neon-glow-hover transition-glow border-0"
+            >
+              {renameGroup.isPending ? "Mengubah..." : "Ubah Nama"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Edit Form */}
       {editedGroup && (
         <Card className="glass-strong border-primary/20">
           <CardContent className="p-6">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                {isCreatingNew ? 'Buat Grup Baru' : `Edit ${editedGroup.name}`}
+                {isCreatingNew ? "Buat Grup Baru" : `Edit ${editedGroup.name}`}
               </h2>
               <div className="flex gap-2">
                 <Button
@@ -378,21 +589,27 @@ export default function AdminGroups() {
                     </AlertDialogTrigger>
                     <AlertDialogContent className="glass-strong border-destructive/50">
                       <AlertDialogHeader>
-                        <AlertDialogTitle className="text-destructive">Hapus Grup?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-destructive">
+                          Hapus Grup?
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Apakah Anda yakin ingin menghapus grup <strong>{editedGroup.name}</strong>? 
-                          Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait grup ini 
-                          termasuk member, jadwal, berita, diskografi, dan setlist.
+                          Apakah Anda yakin ingin menghapus grup{" "}
+                          <strong>{editedGroup.name}</strong>? Tindakan ini
+                          tidak dapat dibatalkan dan akan menghapus semua data
+                          terkait grup ini termasuk member, jadwal, berita,
+                          diskografi, dan setlist.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="glass">Batal</AlertDialogCancel>
+                        <AlertDialogCancel className="glass">
+                          Batal
+                        </AlertDialogCancel>
                         <AlertDialogAction
                           onClick={handleDelete}
                           disabled={deleteGroup.isPending}
                           className="bg-destructive hover:bg-destructive/90"
                         >
-                          {deleteGroup.isPending ? 'Menghapus...' : 'Ya, Hapus'}
+                          {deleteGroup.isPending ? "Menghapus..." : "Ya, Hapus"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -404,38 +621,56 @@ export default function AdminGroups() {
                   className="gap-2 gradient-primary hover:neon-glow-hover transition-glow border-0"
                 >
                   <Save className="h-4 w-4" />
-                  {updateGroup.isPending || createGroup.isPending 
-                    ? 'Menyimpan...' 
-                    : isCreatingNew 
-                      ? 'Buat Grup' 
-                      : 'Simpan Perubahan'}
+                  {updateGroup.isPending || createGroup.isPending
+                    ? "Menyimpan..."
+                    : isCreatingNew
+                      ? "Buat Grup"
+                      : "Simpan Perubahan"}
                 </Button>
               </div>
             </div>
 
             <Tabs defaultValue="basic" className="space-y-6">
               <TabsList className="grid w-full grid-cols-6 glass p-1">
-                <TabsTrigger value="basic" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="basic"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <MapPin className="h-4 w-4 mr-2" />
                   Info Dasar
                 </TabsTrigger>
-                <TabsTrigger value="members" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="members"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <UsersIcon className="h-4 w-4 mr-2" />
                   Member
                 </TabsTrigger>
-                <TabsTrigger value="schedules" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="schedules"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <CalendarDays className="h-4 w-4 mr-2" />
                   Jadwal
                 </TabsTrigger>
-                <TabsTrigger value="news" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="news"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <Newspaper className="h-4 w-4 mr-2" />
                   Berita
                 </TabsTrigger>
-                <TabsTrigger value="discography" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="discography"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <Music className="h-4 w-4 mr-2" />
                   Diskografi
                 </TabsTrigger>
-                <TabsTrigger value="setlists" className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow">
+                <TabsTrigger
+                  value="setlists"
+                  className="data-[state=active]:glass-strong data-[state=active]:neon-glow transition-glow"
+                >
                   <Music className="h-4 w-4 mr-2" />
                   Setlist
                 </TabsTrigger>
@@ -449,14 +684,18 @@ export default function AdminGroups() {
                     <Input
                       id="group-name"
                       value={editedGroup.name}
-                      onChange={(e) => setEditedGroup({ ...editedGroup, name: e.target.value })}
+                      onChange={(e) =>
+                        setEditedGroup({ ...editedGroup, name: e.target.value })
+                      }
                       disabled={!isCreatingNew}
                       placeholder="Contoh: AKB48"
                       className="glass-input"
                     />
                     {isCreatingNew && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Nama grup tidak dapat diubah setelah dibuat
+                        Nama grup tidak dapat diubah setelah dibuat. Gunakan
+                        tombol "Ubah Nama Grup" untuk mengubah nama grup yang
+                        sudah ada.
                       </p>
                     )}
                   </div>
@@ -465,7 +704,10 @@ export default function AdminGroups() {
                     <Input
                       id="formation-date"
                       type="date"
-                      value={format(Number(editedGroup.formationDate) / 1000000, 'yyyy-MM-dd')}
+                      value={format(
+                        Number(editedGroup.formationDate) / 1000000,
+                        "yyyy-MM-dd",
+                      )}
                       onChange={(e) => {
                         const date = new Date(e.target.value);
                         setEditedGroup({
@@ -485,7 +727,9 @@ export default function AdminGroups() {
                       onChange={(e) =>
                         setEditedGroup({
                           ...editedGroup,
-                          memberCount: BigInt(parseInt(e.target.value) || 0),
+                          memberCount: BigInt(
+                            Number.parseInt(e.target.value) || 0,
+                          ),
                         })
                       }
                       className="glass-input"
@@ -497,7 +741,10 @@ export default function AdminGroups() {
                       id="base-location"
                       value={editedGroup.baseLocation}
                       onChange={(e) =>
-                        setEditedGroup({ ...editedGroup, baseLocation: e.target.value })
+                        setEditedGroup({
+                          ...editedGroup,
+                          baseLocation: e.target.value,
+                        })
                       }
                       placeholder="Contoh: Tokyo, Jepang"
                       className="glass-input"
@@ -509,7 +756,10 @@ export default function AdminGroups() {
                       id="theater-location"
                       value={editedGroup.theaterLocation}
                       onChange={(e) =>
-                        setEditedGroup({ ...editedGroup, theaterLocation: e.target.value })
+                        setEditedGroup({
+                          ...editedGroup,
+                          theaterLocation: e.target.value,
+                        })
                       }
                       placeholder="Contoh: AKB48 Theater, Akihabara"
                       className="glass-input"
@@ -521,8 +771,13 @@ export default function AdminGroups() {
               {/* Members Tab */}
               <TabsContent value="members" className="space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Daftar Member ({editedGroup.members.length})</h3>
-                  <Button onClick={handleAddMember} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                  <h3 className="text-lg font-semibold">
+                    Daftar Member ({editedGroup.members.length})
+                  </h3>
+                  <Button
+                    onClick={handleAddMember}
+                    className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                  >
                     <Plus className="h-4 w-4" />
                     Tambah Member
                   </Button>
@@ -531,16 +786,25 @@ export default function AdminGroups() {
                   <Card className="glass border-border/50">
                     <CardContent className="p-8 text-center">
                       <UsersIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Belum ada member. Klik tombol "Tambah Member" untuk menambahkan.</p>
+                      <p className="text-muted-foreground">
+                        Belum ada member. Klik tombol "Tambah Member" untuk
+                        menambahkan.
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-4">
                     {editedGroup.members.map((member, index) => (
-                      <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="glass border-border/50 hover:border-primary/50 transition-all"
+                      >
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-4">
-                            <h4 className="font-semibold text-primary">Member {index + 1}</h4>
+                            <h4 className="font-semibold text-primary">
+                              Member {index + 1}
+                            </h4>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -555,7 +819,13 @@ export default function AdminGroups() {
                               <Label>Nama Lengkap</Label>
                               <Input
                                 value={member.fullName}
-                                onChange={(e) => handleUpdateMember(index, 'fullName', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateMember(
+                                    index,
+                                    "fullName",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Nama lengkap member"
                                 className="glass-input"
                               />
@@ -564,7 +834,13 @@ export default function AdminGroups() {
                               <Label>Nickname</Label>
                               <Input
                                 value={member.nickname}
-                                onChange={(e) => handleUpdateMember(index, 'nickname', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateMember(
+                                    index,
+                                    "nickname",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Nama panggilan"
                                 className="glass-input"
                               />
@@ -573,10 +849,17 @@ export default function AdminGroups() {
                               <Label>Tanggal Lahir</Label>
                               <Input
                                 type="date"
-                                value={format(Number(member.birthdate) / 1000000, 'yyyy-MM-dd')}
+                                value={format(
+                                  Number(member.birthdate) / 1000000,
+                                  "yyyy-MM-dd",
+                                )}
                                 onChange={(e) => {
                                   const date = new Date(e.target.value);
-                                  handleUpdateMember(index, 'birthdate', BigInt(date.getTime() * 1000000));
+                                  handleUpdateMember(
+                                    index,
+                                    "birthdate",
+                                    BigInt(date.getTime() * 1000000),
+                                  );
                                 }}
                                 className="glass-input"
                               />
@@ -585,7 +868,13 @@ export default function AdminGroups() {
                               <Label>Generasi</Label>
                               <Input
                                 value={member.generation}
-                                onChange={(e) => handleUpdateMember(index, 'generation', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateMember(
+                                    index,
+                                    "generation",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Contoh: Gen 1"
                                 className="glass-input"
                               />
@@ -594,7 +883,13 @@ export default function AdminGroups() {
                               <Label>Tim</Label>
                               <Input
                                 value={member.team}
-                                onChange={(e) => handleUpdateMember(index, 'team', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateMember(
+                                    index,
+                                    "team",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Contoh: Team A"
                                 className="glass-input"
                               />
@@ -603,7 +898,13 @@ export default function AdminGroups() {
                               <Label>Bio</Label>
                               <Input
                                 value={member.bio}
-                                onChange={(e) => handleUpdateMember(index, 'bio', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateMember(
+                                    index,
+                                    "bio",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Biografi singkat member"
                                 className="glass-input"
                               />
@@ -619,8 +920,13 @@ export default function AdminGroups() {
               {/* Schedules Tab */}
               <TabsContent value="schedules" className="space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Jadwal & Event ({editedGroup.schedules.length})</h3>
-                  <Button onClick={handleAddSchedule} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                  <h3 className="text-lg font-semibold">
+                    Jadwal & Event ({editedGroup.schedules.length})
+                  </h3>
+                  <Button
+                    onClick={handleAddSchedule}
+                    className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                  >
                     <Plus className="h-4 w-4" />
                     Tambah Jadwal
                   </Button>
@@ -629,16 +935,25 @@ export default function AdminGroups() {
                   <Card className="glass border-border/50">
                     <CardContent className="p-8 text-center">
                       <CalendarDays className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Belum ada jadwal. Klik tombol "Tambah Jadwal" untuk menambahkan.</p>
+                      <p className="text-muted-foreground">
+                        Belum ada jadwal. Klik tombol "Tambah Jadwal" untuk
+                        menambahkan.
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-4">
                     {editedGroup.schedules.map((schedule, index) => (
-                      <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="glass border-border/50 hover:border-primary/50 transition-all"
+                      >
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-4">
-                            <h4 className="font-semibold text-primary">Jadwal {index + 1}</h4>
+                            <h4 className="font-semibold text-primary">
+                              Jadwal {index + 1}
+                            </h4>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -653,10 +968,17 @@ export default function AdminGroups() {
                               <Label>Tanggal</Label>
                               <Input
                                 type="date"
-                                value={format(Number(schedule.date) / 1000000, 'yyyy-MM-dd')}
+                                value={format(
+                                  Number(schedule.date) / 1000000,
+                                  "yyyy-MM-dd",
+                                )}
                                 onChange={(e) => {
                                   const date = new Date(e.target.value);
-                                  handleUpdateSchedule(index, 'date', BigInt(date.getTime() * 1000000));
+                                  handleUpdateSchedule(
+                                    index,
+                                    "date",
+                                    BigInt(date.getTime() * 1000000),
+                                  );
                                 }}
                                 className="glass-input"
                               />
@@ -665,7 +987,13 @@ export default function AdminGroups() {
                               <Label>Event</Label>
                               <Input
                                 value={schedule.event}
-                                onChange={(e) => handleUpdateSchedule(index, 'event', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateSchedule(
+                                    index,
+                                    "event",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Nama event"
                                 className="glass-input"
                               />
@@ -674,7 +1002,13 @@ export default function AdminGroups() {
                               <Label>Lokasi</Label>
                               <Input
                                 value={schedule.location}
-                                onChange={(e) => handleUpdateSchedule(index, 'location', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateSchedule(
+                                    index,
+                                    "location",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Lokasi event"
                                 className="glass-input"
                               />
@@ -690,8 +1024,13 @@ export default function AdminGroups() {
               {/* News Tab */}
               <TabsContent value="news" className="space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Berita Grup ({editedGroup.news.length})</h3>
-                  <Button onClick={handleAddNews} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                  <h3 className="text-lg font-semibold">
+                    Berita Grup ({editedGroup.news.length})
+                  </h3>
+                  <Button
+                    onClick={handleAddNews}
+                    className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                  >
                     <Plus className="h-4 w-4" />
                     Tambah Berita
                   </Button>
@@ -700,16 +1039,25 @@ export default function AdminGroups() {
                   <Card className="glass border-border/50">
                     <CardContent className="p-8 text-center">
                       <Newspaper className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Belum ada berita. Klik tombol "Tambah Berita" untuk menambahkan.</p>
+                      <p className="text-muted-foreground">
+                        Belum ada berita. Klik tombol "Tambah Berita" untuk
+                        menambahkan.
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-4">
                     {editedGroup.news.map((news, index) => (
-                      <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="glass border-border/50 hover:border-primary/50 transition-all"
+                      >
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-4">
-                            <h4 className="font-semibold text-primary">Berita {index + 1}</h4>
+                            <h4 className="font-semibold text-primary">
+                              Berita {index + 1}
+                            </h4>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -724,10 +1072,17 @@ export default function AdminGroups() {
                               <Label>Tanggal</Label>
                               <Input
                                 type="date"
-                                value={format(Number(news.date) / 1000000, 'yyyy-MM-dd')}
+                                value={format(
+                                  Number(news.date) / 1000000,
+                                  "yyyy-MM-dd",
+                                )}
                                 onChange={(e) => {
                                   const date = new Date(e.target.value);
-                                  handleUpdateNews(index, 'date', BigInt(date.getTime() * 1000000));
+                                  handleUpdateNews(
+                                    index,
+                                    "date",
+                                    BigInt(date.getTime() * 1000000),
+                                  );
                                 }}
                                 className="glass-input"
                               />
@@ -736,7 +1091,13 @@ export default function AdminGroups() {
                               <Label>Judul</Label>
                               <Input
                                 value={news.title}
-                                onChange={(e) => handleUpdateNews(index, 'title', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateNews(
+                                    index,
+                                    "title",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Judul berita"
                                 className="glass-input"
                               />
@@ -745,7 +1106,13 @@ export default function AdminGroups() {
                               <Label>Konten</Label>
                               <Input
                                 value={news.content}
-                                onChange={(e) => handleUpdateNews(index, 'content', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateNews(
+                                    index,
+                                    "content",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Isi berita"
                                 className="glass-input"
                               />
@@ -763,8 +1130,13 @@ export default function AdminGroups() {
                 {/* Singles */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Single ({editedGroup.discography.singles.length})</h3>
-                    <Button onClick={handleAddSingle} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                    <h3 className="text-lg font-semibold">
+                      Single ({editedGroup.discography.singles.length})
+                    </h3>
+                    <Button
+                      onClick={handleAddSingle}
+                      className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                    >
                       <Plus className="h-4 w-4" />
                       Tambah Single
                     </Button>
@@ -773,16 +1145,25 @@ export default function AdminGroups() {
                     <Card className="glass border-border/50">
                       <CardContent className="p-8 text-center">
                         <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-muted-foreground">Belum ada single. Klik tombol "Tambah Single" untuk menambahkan.</p>
+                        <p className="text-muted-foreground">
+                          Belum ada single. Klik tombol "Tambah Single" untuk
+                          menambahkan.
+                        </p>
                       </CardContent>
                     </Card>
                   ) : (
                     <div className="space-y-4">
                       {editedGroup.discography.singles.map((single, index) => (
-                        <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                        <Card
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                          key={index}
+                          className="glass border-border/50 hover:border-primary/50 transition-all"
+                        >
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-4">
-                              <h4 className="font-semibold text-primary">Single {index + 1}</h4>
+                              <h4 className="font-semibold text-primary">
+                                Single {index + 1}
+                              </h4>
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -797,7 +1178,13 @@ export default function AdminGroups() {
                                 <Label>Judul</Label>
                                 <Input
                                   value={single.title}
-                                  onChange={(e) => handleUpdateSingle(index, 'title', e.target.value)}
+                                  onChange={(e) =>
+                                    handleUpdateSingle(
+                                      index,
+                                      "title",
+                                      e.target.value,
+                                    )
+                                  }
                                   placeholder="Judul single"
                                   className="glass-input"
                                 />
@@ -806,10 +1193,17 @@ export default function AdminGroups() {
                                 <Label>Tanggal Rilis</Label>
                                 <Input
                                   type="date"
-                                  value={format(Number(single.releaseDate) / 1000000, 'yyyy-MM-dd')}
+                                  value={format(
+                                    Number(single.releaseDate) / 1000000,
+                                    "yyyy-MM-dd",
+                                  )}
                                   onChange={(e) => {
                                     const date = new Date(e.target.value);
-                                    handleUpdateSingle(index, 'releaseDate', BigInt(date.getTime() * 1000000));
+                                    handleUpdateSingle(
+                                      index,
+                                      "releaseDate",
+                                      BigInt(date.getTime() * 1000000),
+                                    );
                                   }}
                                   className="glass-input"
                                 />
@@ -817,8 +1211,16 @@ export default function AdminGroups() {
                               <div>
                                 <Label>Tracklist (satu per baris)</Label>
                                 <textarea
-                                  value={single.tracks.join('\n')}
-                                  onChange={(e) => handleUpdateSingle(index, 'tracks', e.target.value.split('\n').filter(t => t.trim()))}
+                                  value={single.tracks.join("\n")}
+                                  onChange={(e) =>
+                                    handleUpdateSingle(
+                                      index,
+                                      "tracks",
+                                      e.target.value
+                                        .split("\n")
+                                        .filter((t) => t.trim()),
+                                    )
+                                  }
                                   placeholder="Masukkan judul lagu, satu per baris"
                                   className="glass-input min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 />
@@ -834,8 +1236,13 @@ export default function AdminGroups() {
                 {/* Albums */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Album ({editedGroup.discography.albums.length})</h3>
-                    <Button onClick={handleAddAlbum} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                    <h3 className="text-lg font-semibold">
+                      Album ({editedGroup.discography.albums.length})
+                    </h3>
+                    <Button
+                      onClick={handleAddAlbum}
+                      className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                    >
                       <Plus className="h-4 w-4" />
                       Tambah Album
                     </Button>
@@ -844,16 +1251,25 @@ export default function AdminGroups() {
                     <Card className="glass border-border/50">
                       <CardContent className="p-8 text-center">
                         <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-muted-foreground">Belum ada album. Klik tombol "Tambah Album" untuk menambahkan.</p>
+                        <p className="text-muted-foreground">
+                          Belum ada album. Klik tombol "Tambah Album" untuk
+                          menambahkan.
+                        </p>
                       </CardContent>
                     </Card>
                   ) : (
                     <div className="space-y-4">
                       {editedGroup.discography.albums.map((album, index) => (
-                        <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                        <Card
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                          key={index}
+                          className="glass border-border/50 hover:border-primary/50 transition-all"
+                        >
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-4">
-                              <h4 className="font-semibold text-primary">Album {index + 1}</h4>
+                              <h4 className="font-semibold text-primary">
+                                Album {index + 1}
+                              </h4>
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -868,7 +1284,13 @@ export default function AdminGroups() {
                                 <Label>Judul</Label>
                                 <Input
                                   value={album.title}
-                                  onChange={(e) => handleUpdateAlbum(index, 'title', e.target.value)}
+                                  onChange={(e) =>
+                                    handleUpdateAlbum(
+                                      index,
+                                      "title",
+                                      e.target.value,
+                                    )
+                                  }
                                   placeholder="Judul album"
                                   className="glass-input"
                                 />
@@ -877,10 +1299,17 @@ export default function AdminGroups() {
                                 <Label>Tanggal Rilis</Label>
                                 <Input
                                   type="date"
-                                  value={format(Number(album.releaseDate) / 1000000, 'yyyy-MM-dd')}
+                                  value={format(
+                                    Number(album.releaseDate) / 1000000,
+                                    "yyyy-MM-dd",
+                                  )}
                                   onChange={(e) => {
                                     const date = new Date(e.target.value);
-                                    handleUpdateAlbum(index, 'releaseDate', BigInt(date.getTime() * 1000000));
+                                    handleUpdateAlbum(
+                                      index,
+                                      "releaseDate",
+                                      BigInt(date.getTime() * 1000000),
+                                    );
                                   }}
                                   className="glass-input"
                                 />
@@ -888,8 +1317,16 @@ export default function AdminGroups() {
                               <div>
                                 <Label>Tracklist (satu per baris)</Label>
                                 <textarea
-                                  value={album.tracks.join('\n')}
-                                  onChange={(e) => handleUpdateAlbum(index, 'tracks', e.target.value.split('\n').filter(t => t.trim()))}
+                                  value={album.tracks.join("\n")}
+                                  onChange={(e) =>
+                                    handleUpdateAlbum(
+                                      index,
+                                      "tracks",
+                                      e.target.value
+                                        .split("\n")
+                                        .filter((t) => t.trim()),
+                                    )
+                                  }
                                   placeholder="Masukkan judul lagu, satu per baris"
                                   className="glass-input min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 />
@@ -906,8 +1343,13 @@ export default function AdminGroups() {
               {/* Setlists Tab */}
               <TabsContent value="setlists" className="space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Setlist Theater ({editedGroup.setlists.length})</h3>
-                  <Button onClick={handleAddSetlist} className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0">
+                  <h3 className="text-lg font-semibold">
+                    Setlist Theater ({editedGroup.setlists.length})
+                  </h3>
+                  <Button
+                    onClick={handleAddSetlist}
+                    className="gap-2 gradient-secondary hover:neon-glow-hover transition-glow border-0"
+                  >
                     <Plus className="h-4 w-4" />
                     Tambah Setlist
                   </Button>
@@ -916,16 +1358,25 @@ export default function AdminGroups() {
                   <Card className="glass border-border/50">
                     <CardContent className="p-8 text-center">
                       <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Belum ada setlist. Klik tombol "Tambah Setlist" untuk menambahkan.</p>
+                      <p className="text-muted-foreground">
+                        Belum ada setlist. Klik tombol "Tambah Setlist" untuk
+                        menambahkan.
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-4">
                     {editedGroup.setlists.map((setlist, index) => (
-                      <Card key={index} className="glass border-border/50 hover:border-primary/50 transition-all">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="glass border-border/50 hover:border-primary/50 transition-all"
+                      >
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-4">
-                            <h4 className="font-semibold text-primary">Setlist {index + 1}</h4>
+                            <h4 className="font-semibold text-primary">
+                              Setlist {index + 1}
+                            </h4>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -940,7 +1391,13 @@ export default function AdminGroups() {
                               <Label>Judul Setlist</Label>
                               <Input
                                 value={setlist.title}
-                                onChange={(e) => handleUpdateSetlist(index, 'title', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateSetlist(
+                                    index,
+                                    "title",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="Nama setlist"
                                 className="glass-input"
                               />
@@ -948,8 +1405,16 @@ export default function AdminGroups() {
                             <div>
                               <Label>Tracklist (satu per baris)</Label>
                               <textarea
-                                value={setlist.tracks.join('\n')}
-                                onChange={(e) => handleUpdateSetlist(index, 'tracks', e.target.value.split('\n').filter(t => t.trim()))}
+                                value={setlist.tracks.join("\n")}
+                                onChange={(e) =>
+                                  handleUpdateSetlist(
+                                    index,
+                                    "tracks",
+                                    e.target.value
+                                      .split("\n")
+                                      .filter((t) => t.trim()),
+                                  )
+                                }
                                 placeholder="Masukkan judul lagu, satu per baris"
                                 className="glass-input min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                               />

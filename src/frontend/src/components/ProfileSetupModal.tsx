@@ -1,34 +1,43 @@
-import { useState } from 'react';
-import { useSaveCallerUserProfile } from '../hooks/useQueries';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Button } from './ui/button';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { toast } from "sonner";
+import { useSaveCallerUserProfile } from "../hooks/useQueries";
+import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 export default function ProfileSetupModal() {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const saveProfile = useSaveCallerUserProfile();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Nama tidak boleh kosong');
+      toast.error("Nama tidak boleh kosong");
       return;
     }
 
     try {
-      await saveProfile.mutateAsync({ name: name.trim(), role: 'user' });
-      toast.success('Profil berhasil disimpan!');
+      await saveProfile.mutateAsync({ name: name.trim(), role: "user" });
+      toast.success("Profil berhasil disimpan!");
     } catch (error) {
-      toast.error('Gagal menyimpan profil');
+      toast.error("Gagal menyimpan profil");
       console.error(error);
     }
   };
 
   return (
     <Dialog open={true}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Selamat Datang!</DialogTitle>
           <DialogDescription>
@@ -46,8 +55,12 @@ export default function ProfileSetupModal() {
               autoFocus
             />
           </div>
-          <Button type="submit" className="w-full" disabled={saveProfile.isPending}>
-            {saveProfile.isPending ? 'Menyimpan...' : 'Simpan'}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={saveProfile.isPending}
+          >
+            {saveProfile.isPending ? "Menyimpan..." : "Simpan"}
           </Button>
         </form>
       </DialogContent>

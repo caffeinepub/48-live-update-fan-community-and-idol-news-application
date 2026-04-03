@@ -1,35 +1,76 @@
-import { useParams, useNavigate } from '@tanstack/react-router';
-import { useGetGroup, useIsCallerAdmin, useUpdateGroup } from '../hooks/useQueries';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Skeleton } from '../components/ui/skeleton';
-import { ArrowLeft, MapPin, Calendar, Users, Plus, Edit, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { toast } from 'sonner';
-import type { Setlist } from '../backend';
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import {
+  ArrowLeft,
+  Calendar,
+  Edit,
+  MapPin,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { Member, Setlist } from "../backend";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Skeleton } from "../components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import {
+  useGetGroup,
+  useIsCallerAdmin,
+  useUpdateGroup,
+} from "../hooks/useQueries";
 
 export default function GroupDetailPage() {
-  const { groupName } = useParams({ from: '/groups/$groupName' });
+  const { groupName } = useParams({ from: "/groups/$groupName" });
   const navigate = useNavigate();
   const { data: group, isLoading } = useGetGroup(groupName);
   const { data: isAdmin } = useIsCallerAdmin();
   const updateGroup = useUpdateGroup();
 
   const [showSetlistDialog, setShowSetlistDialog] = useState(false);
-  const [editingSetlistIndex, setEditingSetlistIndex] = useState<number | null>(null);
-  const [setlistTitle, setSetlistTitle] = useState('');
-  const [setlistTracks, setSetlistTracks] = useState<string[]>(['']);
+  const [editingSetlistIndex, setEditingSetlistIndex] = useState<number | null>(
+    null,
+  );
+  const [setlistTitle, setSetlistTitle] = useState("");
+  const [setlistTracks, setSetlistTracks] = useState<string[]>([""]);
+
+  // Sort members alphabetically by full name and separate by team
+  const sortedMembers = useMemo(() => {
+    if (!group) return { teamMembers: [], trainees: [] };
+
+    const teamMembers = group.members
+      .filter((m) => !m.team.toLowerCase().includes("trainee"))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, "id"));
+
+    const trainees = group.members
+      .filter((m) => m.team.toLowerCase().includes("trainee"))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, "id"));
+
+    return { teamMembers, trainees };
+  }, [group]);
 
   const handleAddSetlist = () => {
     setEditingSetlistIndex(null);
-    setSetlistTitle('');
-    setSetlistTracks(['']);
+    setSetlistTitle("");
+    setSetlistTracks([""]);
     setShowSetlistDialog(true);
   };
 
@@ -44,30 +85,30 @@ export default function GroupDetailPage() {
 
   const handleDeleteSetlist = async (index: number) => {
     if (!group) return;
-    
+
     const updatedSetlists = group.setlists.filter((_, i) => i !== index);
-    
+
     try {
       await updateGroup.mutateAsync({
         ...group,
         setlists: updatedSetlists,
       });
-      toast.success('Setlist berhasil dihapus');
-    } catch (error) {
-      toast.error('Gagal menghapus setlist');
+      toast.success("Setlist berhasil dihapus");
+    } catch (_error) {
+      toast.error("Gagal menghapus setlist");
     }
   };
 
   const handleSaveSetlist = async () => {
     if (!group) return;
     if (!setlistTitle.trim()) {
-      toast.error('Judul setlist harus diisi');
+      toast.error("Judul setlist harus diisi");
       return;
     }
 
-    const validTracks = setlistTracks.filter(track => track.trim() !== '');
+    const validTracks = setlistTracks.filter((track) => track.trim() !== "");
     if (validTracks.length === 0) {
-      toast.error('Minimal harus ada satu lagu');
+      toast.error("Minimal harus ada satu lagu");
       return;
     }
 
@@ -89,15 +130,19 @@ export default function GroupDetailPage() {
         ...group,
         setlists: updatedSetlists,
       });
-      toast.success(editingSetlistIndex !== null ? 'Setlist berhasil diperbarui' : 'Setlist berhasil ditambahkan');
+      toast.success(
+        editingSetlistIndex !== null
+          ? "Setlist berhasil diperbarui"
+          : "Setlist berhasil ditambahkan",
+      );
       setShowSetlistDialog(false);
-    } catch (error) {
-      toast.error('Gagal menyimpan setlist');
+    } catch (_error) {
+      toast.error("Gagal menyimpan setlist");
     }
   };
 
   const handleAddTrack = () => {
-    setSetlistTracks([...setlistTracks, '']);
+    setSetlistTracks([...setlistTracks, ""]);
   };
 
   const handleRemoveTrack = (index: number) => {
@@ -125,16 +170,18 @@ export default function GroupDetailPage() {
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
-          onClick={() => navigate({ to: '/groups' })}
+          onClick={() => navigate({ to: "/groups" })}
           className="mb-6 gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Button>
-        <Card className="glass-card">
+        <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
           <CardContent className="flex h-64 items-center justify-center">
             <div className="text-center">
-              <p className="mb-4 text-muted-foreground">Data grup belum tersedia</p>
+              <p className="mb-4 text-muted-foreground">
+                Data grup belum tersedia
+              </p>
               <p className="text-sm text-muted-foreground">
                 Informasi untuk {groupName} akan segera ditambahkan
               </p>
@@ -150,7 +197,7 @@ export default function GroupDetailPage() {
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
-          onClick={() => navigate({ to: '/groups' })}
+          onClick={() => navigate({ to: "/groups" })}
           className="mb-6 gap-2 transition-all hover:gap-3"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -158,37 +205,53 @@ export default function GroupDetailPage() {
         </Button>
 
         {/* Group Header */}
-        <Card className="glass-card mb-8 animate-glow">
+        <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg mb-8">
           <CardContent className="p-8">
-            <div className="mb-6 flex h-48 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-accent/20">
-              <h1 className="gradient-text text-5xl font-bold">{group.name}</h1>
+            <div className="mb-6 flex h-48 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20">
+              <h1 className="text-5xl font-bold text-gradient">{group.name}</h1>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-neon-cyan" />
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Dibentuk</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tanggal Pembentukan
+                  </p>
                   <p className="font-medium">
-                    {format(Number(group.formationDate) / 1000000, 'dd MMMM yyyy', { locale: id })}
+                    {format(
+                      Number(group.formationDate) / 1000000,
+                      "dd MMMM yyyy",
+                      { locale: id },
+                    )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-neon-pink" />
+                <div className="p-2 rounded-xl bg-accent/10">
+                  <MapPin className="h-5 w-5 text-accent" />
+                </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Lokasi</p>
+                  <p className="text-sm text-muted-foreground">Lokasi Base</p>
                   <p className="font-medium">{group.baseLocation}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-neon-purple" />
+                <div className="p-2 rounded-xl bg-secondary/10">
+                  <MapPin className="h-5 w-5 text-secondary" />
+                </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Theater</p>
+                  <p className="text-sm text-muted-foreground">
+                    Lokasi Theater
+                  </p>
                   <p className="font-medium">{group.theaterLocation}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-neon-blue" />
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Jumlah Member</p>
                   <p className="font-medium">{Number(group.memberCount)}</p>
@@ -200,73 +263,194 @@ export default function GroupDetailPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="members" className="space-y-6">
-          <TabsList className="glass-card grid w-full grid-cols-6">
-            <TabsTrigger value="members">Member</TabsTrigger>
-            <TabsTrigger value="schedules">Jadwal</TabsTrigger>
-            <TabsTrigger value="news">Berita</TabsTrigger>
-            <TabsTrigger value="discography">Diskografi</TabsTrigger>
-            <TabsTrigger value="setlists">Setlist</TabsTrigger>
-            <TabsTrigger value="theater-setlists">Setlist Theater</TabsTrigger>
+          <TabsList className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 grid w-full grid-cols-5">
+            <TabsTrigger value="members" className="rounded-xl">
+              Member
+            </TabsTrigger>
+            <TabsTrigger value="schedules" className="rounded-xl">
+              Jadwal
+            </TabsTrigger>
+            <TabsTrigger value="news" className="rounded-xl">
+              Berita
+            </TabsTrigger>
+            <TabsTrigger value="discography" className="rounded-xl">
+              Diskografi
+            </TabsTrigger>
+            <TabsTrigger value="setlists" className="rounded-xl">
+              Setlist
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="members">
-            <Card className="glass-card">
-              <CardContent className="p-6">
-                <h2 className="gradient-text mb-6 text-2xl font-bold">Member</h2>
-                {group.members.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada data member</p>
-                ) : (
+            <div className="space-y-8">
+              {/* Team Members */}
+              {sortedMembers.teamMembers.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-bold text-gradient mb-6">
+                    Member Team
+                  </h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {group.members.map((member, index) => (
-                      <Card key={index} className="glass-card transition-all hover:scale-105">
-                        <CardContent className="p-4">
-                          <h3 className="mb-1 font-semibold">{member.fullName}</h3>
-                          <p className="mb-2 text-sm text-neon-cyan">{member.nickname}</p>
-                          <div className="space-y-1 text-sm">
+                    {sortedMembers.teamMembers.map((member, index) => (
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                      >
+                        <CardContent className="p-6">
+                          <h3 className="mb-1 text-lg font-bold text-foreground">
+                            {member.fullName}
+                          </h3>
+                          <p className="mb-3 text-sm text-primary font-medium">
+                            {member.nickname}
+                          </p>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-primary/20 text-primary border-primary/30 rounded-full">
+                                {member.team}
+                              </Badge>
+                            </div>
                             <p>
-                              <span className="text-muted-foreground">Generasi:</span> {member.generation}
+                              <span className="text-muted-foreground">
+                                Generasi:
+                              </span>{" "}
+                              {member.generation}
                             </p>
                             <p>
-                              <span className="text-muted-foreground">Tim:</span> {member.team}
+                              <span className="text-muted-foreground">
+                                Lahir:
+                              </span>{" "}
+                              {format(
+                                Number(member.birthdate) / 1000000,
+                                "dd MMMM yyyy",
+                                { locale: id },
+                              )}
                             </p>
-                            <p>
-                              <span className="text-muted-foreground">Lahir:</span>{' '}
-                              {format(Number(member.birthdate) / 1000000, 'dd MMMM yyyy', { locale: id })}
-                            </p>
-                            {member.bio && <p className="mt-2 text-muted-foreground">{member.bio}</p>}
+                            {member.bio && (
+                              <p className="mt-3 text-muted-foreground">
+                                {member.bio}
+                              </p>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              )}
+
+              {/* Trainees */}
+              {sortedMembers.trainees.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-bold text-gradient mb-6">
+                    Member Trainee
+                  </h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {sortedMembers.trainees.map((member, index) => (
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                      >
+                        <CardContent className="p-6">
+                          <h3 className="mb-1 text-lg font-bold text-foreground">
+                            {member.fullName}
+                          </h3>
+                          <p className="mb-3 text-sm text-accent font-medium">
+                            {member.nickname}
+                          </p>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-accent/20 text-accent border-accent/30 rounded-full">
+                                {member.team}
+                              </Badge>
+                            </div>
+                            <p>
+                              <span className="text-muted-foreground">
+                                Generasi:
+                              </span>{" "}
+                              {member.generation}
+                            </p>
+                            <p>
+                              <span className="text-muted-foreground">
+                                Lahir:
+                              </span>{" "}
+                              {format(
+                                Number(member.birthdate) / 1000000,
+                                "dd MMMM yyyy",
+                                { locale: id },
+                              )}
+                            </p>
+                            {member.bio && (
+                              <p className="mt-3 text-muted-foreground">
+                                {member.bio}
+                              </p>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {group.members.length === 0 && (
+                <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+                  <CardContent className="p-12 text-center">
+                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-lg text-muted-foreground">
+                      Belum ada data member
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="schedules">
-            <Card className="glass-card">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
               <CardContent className="p-6">
-                <h2 className="gradient-text mb-6 text-2xl font-bold">Jadwal & Event</h2>
+                <h2 className="text-2xl font-bold text-gradient mb-6">
+                  Jadwal & Event
+                </h2>
                 {group.schedules.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada jadwal tersedia</p>
+                  <div className="text-center py-12">
+                    <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-lg text-muted-foreground">
+                      Belum ada jadwal tersedia
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {group.schedules.map((schedule, index) => (
-                      <Card key={index} className="glass-card transition-all hover:scale-[1.02]">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                      >
                         <CardContent className="p-4">
                           <div className="flex items-start gap-4">
-                            <div className="flex flex-col items-center rounded-lg bg-gradient-to-br from-neon-cyan/20 to-neon-blue/20 p-3">
-                              <span className="gradient-text text-2xl font-bold">
-                                {format(Number(schedule.date) / 1000000, 'dd', { locale: id })}
+                            <div className="flex flex-col items-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 p-3 min-w-[80px]">
+                              <span className="text-2xl font-bold text-gradient">
+                                {format(Number(schedule.date) / 1000000, "dd", {
+                                  locale: id,
+                                })}
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {format(Number(schedule.date) / 1000000, 'MMM', { locale: id })}
+                                {format(
+                                  Number(schedule.date) / 1000000,
+                                  "MMM yyyy",
+                                  { locale: id },
+                                )}
                               </span>
                             </div>
                             <div className="flex-1">
-                              <h3 className="mb-1 font-semibold">{schedule.event}</h3>
-                              <p className="text-sm text-muted-foreground">{schedule.location}</p>
+                              <h3 className="mb-1 font-semibold text-foreground">
+                                {schedule.event}
+                              </h3>
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                {schedule.location}
+                              </p>
                             </div>
                           </div>
                         </CardContent>
@@ -279,21 +463,38 @@ export default function GroupDetailPage() {
           </TabsContent>
 
           <TabsContent value="news">
-            <Card className="glass-card">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
               <CardContent className="p-6">
-                <h2 className="gradient-text mb-6 text-2xl font-bold">Berita Grup</h2>
+                <h2 className="text-2xl font-bold text-gradient mb-6">
+                  Berita Grup
+                </h2>
                 {group.news.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada berita tersedia</p>
+                  <div className="text-center py-12">
+                    <p className="text-lg text-muted-foreground">
+                      Belum ada berita tersedia
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {group.news.map((news) => (
-                      <Card key={news.id.toString()} className="glass-card transition-all hover:scale-[1.02]">
+                      <Card
+                        key={news.id.toString()}
+                        className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                      >
                         <CardContent className="p-4">
-                          <div className="mb-2 text-sm text-neon-cyan">
-                            {format(Number(news.date) / 1000000, 'dd MMMM yyyy', { locale: id })}
+                          <div className="mb-2 text-sm text-primary font-medium">
+                            {format(
+                              Number(news.date) / 1000000,
+                              "dd MMMM yyyy",
+                              { locale: id },
+                            )}
                           </div>
-                          <h3 className="mb-2 font-semibold">{news.title}</h3>
-                          <p className="text-sm text-muted-foreground">{news.content}</p>
+                          <h3 className="mb-2 font-semibold text-foreground">
+                            {news.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {news.content}
+                          </p>
                         </CardContent>
                       </Card>
                     ))}
@@ -305,23 +506,41 @@ export default function GroupDetailPage() {
 
           <TabsContent value="discography">
             <div className="space-y-6">
-              <Card className="glass-card">
+              <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
                 <CardContent className="p-6">
-                  <h2 className="gradient-text mb-6 text-2xl font-bold">Single</h2>
+                  <h2 className="text-2xl font-bold text-gradient mb-6">
+                    Single
+                  </h2>
                   {group.discography.singles.length === 0 ? (
-                    <p className="text-center text-muted-foreground">Belum ada data single</p>
+                    <p className="text-center text-muted-foreground py-8">
+                      Belum ada data single
+                    </p>
                   ) : (
                     <div className="space-y-4">
                       {group.discography.singles.map((single, index) => (
-                        <Card key={index} className="glass-card transition-all hover:scale-[1.02]">
+                        <Card
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                          key={index}
+                          className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                        >
                           <CardContent className="p-4">
-                            <h3 className="mb-1 font-semibold">{single.title}</h3>
-                            <p className="mb-3 text-sm text-neon-cyan">
-                              {format(Number(single.releaseDate) / 1000000, 'dd MMMM yyyy', { locale: id })}
+                            <h3 className="mb-1 font-semibold text-foreground">
+                              {single.title}
+                            </h3>
+                            <p className="mb-3 text-sm text-primary font-medium">
+                              {format(
+                                Number(single.releaseDate) / 1000000,
+                                "dd MMMM yyyy",
+                                { locale: id },
+                              )}
                             </p>
                             <div className="space-y-1">
                               {single.tracks.map((track, trackIndex) => (
-                                <p key={trackIndex} className="text-sm">
+                                <p
+                                  // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                                  key={trackIndex}
+                                  className="text-sm text-muted-foreground"
+                                >
                                   {trackIndex + 1}. {track}
                                 </p>
                               ))}
@@ -334,23 +553,41 @@ export default function GroupDetailPage() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
+              <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
                 <CardContent className="p-6">
-                  <h2 className="gradient-text mb-6 text-2xl font-bold">Album</h2>
+                  <h2 className="text-2xl font-bold text-gradient mb-6">
+                    Album
+                  </h2>
                   {group.discography.albums.length === 0 ? (
-                    <p className="text-center text-muted-foreground">Belum ada data album</p>
+                    <p className="text-center text-muted-foreground py-8">
+                      Belum ada data album
+                    </p>
                   ) : (
                     <div className="space-y-4">
                       {group.discography.albums.map((album, index) => (
-                        <Card key={index} className="glass-card transition-all hover:scale-[1.02]">
+                        <Card
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                          key={index}
+                          className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                        >
                           <CardContent className="p-4">
-                            <h3 className="mb-1 font-semibold">{album.title}</h3>
-                            <p className="mb-3 text-sm text-neon-cyan">
-                              {format(Number(album.releaseDate) / 1000000, 'dd MMMM yyyy', { locale: id })}
+                            <h3 className="mb-1 font-semibold text-foreground">
+                              {album.title}
+                            </h3>
+                            <p className="mb-3 text-sm text-primary font-medium">
+                              {format(
+                                Number(album.releaseDate) / 1000000,
+                                "dd MMMM yyyy",
+                                { locale: id },
+                              )}
                             </p>
                             <div className="space-y-1">
                               {album.tracks.map((track, trackIndex) => (
-                                <p key={trackIndex} className="text-sm">
+                                <p
+                                  // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                                  key={trackIndex}
+                                  className="text-sm text-muted-foreground"
+                                >
                                   {trackIndex + 1}. {track}
                                 </p>
                               ))}
@@ -366,42 +603,16 @@ export default function GroupDetailPage() {
           </TabsContent>
 
           <TabsContent value="setlists">
-            <Card className="glass-card">
-              <CardContent className="p-6">
-                <h2 className="gradient-text mb-6 text-2xl font-bold">Setlist Konser</h2>
-                {group.setlists.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada data setlist</p>
-                ) : (
-                  <div className="space-y-4">
-                    {group.setlists.map((setlist, index) => (
-                      <Card key={index} className="glass-card transition-all hover:scale-[1.02]">
-                        <CardContent className="p-4">
-                          <h3 className="mb-3 font-semibold">{setlist.title}</h3>
-                          <div className="space-y-1">
-                            {setlist.tracks.map((track, trackIndex) => (
-                              <p key={trackIndex} className="text-sm">
-                                {trackIndex + 1}. {track}
-                              </p>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="theater-setlists">
-            <Card className="glass-card">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
               <CardContent className="p-6">
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="gradient-text text-2xl font-bold">Setlist Theater</h2>
+                  <h2 className="text-2xl font-bold text-gradient">
+                    Setlist Theater
+                  </h2>
                   {isAdmin && (
                     <Button
                       onClick={handleAddSetlist}
-                      className="gap-2 bg-gradient-to-r from-neon-cyan to-neon-blue transition-all hover:scale-105"
+                      className="gap-2 rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
                     >
                       <Plus className="h-4 w-4" />
                       Tambah Setlist
@@ -409,21 +620,31 @@ export default function GroupDetailPage() {
                   )}
                 </div>
                 {group.setlists.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada setlist theater</p>
+                  <div className="text-center py-12">
+                    <p className="text-lg text-muted-foreground">
+                      Belum ada setlist theater
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {group.setlists.map((setlist, index) => (
-                      <Card key={index} className="glass-card transition-all hover:scale-[1.02]">
+                      <Card
+                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                        key={index}
+                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                      >
                         <CardContent className="p-4">
                           <div className="mb-3 flex items-start justify-between">
-                            <h3 className="gradient-text font-semibold">{setlist.title}</h3>
+                            <h3 className="text-lg font-bold text-gradient">
+                              {setlist.title}
+                            </h3>
                             {isAdmin && (
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleEditSetlist(index)}
-                                  className="h-8 w-8 p-0 transition-all hover:scale-110 hover:text-neon-cyan"
+                                  className="h-8 w-8 p-0 rounded-full hover:bg-primary/10"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -431,7 +652,7 @@ export default function GroupDetailPage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleDeleteSetlist(index)}
-                                  className="h-8 w-8 p-0 transition-all hover:scale-110 hover:text-destructive"
+                                  className="h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -440,7 +661,11 @@ export default function GroupDetailPage() {
                           </div>
                           <div className="space-y-1">
                             {setlist.tracks.map((track, trackIndex) => (
-                              <p key={trackIndex} className="text-sm">
+                              <p
+                                // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                                key={trackIndex}
+                                className="text-sm text-muted-foreground"
+                              >
                                 {trackIndex + 1}. {track}
                               </p>
                             ))}
@@ -458,10 +683,12 @@ export default function GroupDetailPage() {
 
       {/* Setlist Dialog */}
       <Dialog open={showSetlistDialog} onOpenChange={setShowSetlistDialog}>
-        <DialogContent className="glass-card max-h-[80vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl border-2 border-primary/20 max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="gradient-text">
-              {editingSetlistIndex !== null ? 'Edit Setlist Theater' : 'Tambah Setlist Theater'}
+            <DialogTitle className="text-2xl font-bold text-gradient">
+              {editingSetlistIndex !== null
+                ? "Edit Setlist Theater"
+                : "Tambah Setlist Theater"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -472,7 +699,7 @@ export default function GroupDetailPage() {
                 value={setlistTitle}
                 onChange={(e) => setSetlistTitle(e.target.value)}
                 placeholder="Contoh: Team K 6th Stage"
-                className="glass-input"
+                className="rounded-xl border-2 border-primary/20"
               />
             </div>
             <div>
@@ -482,7 +709,7 @@ export default function GroupDetailPage() {
                   size="sm"
                   variant="outline"
                   onClick={handleAddTrack}
-                  className="gap-2"
+                  className="gap-2 rounded-full"
                 >
                   <Plus className="h-4 w-4" />
                   Tambah Lagu
@@ -490,19 +717,20 @@ export default function GroupDetailPage() {
               </div>
               <div className="space-y-2">
                 {setlistTracks.map((track, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
                   <div key={index} className="flex gap-2">
                     <Input
                       value={track}
                       onChange={(e) => handleTrackChange(index, e.target.value)}
                       placeholder={`Lagu ${index + 1}`}
-                      className="glass-input"
+                      className="rounded-xl border-2 border-primary/20"
                     />
                     {setlistTracks.length > 1 && (
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleRemoveTrack(index)}
-                        className="transition-all hover:scale-110 hover:text-destructive"
+                        className="rounded-full hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -516,15 +744,16 @@ export default function GroupDetailPage() {
             <Button
               variant="outline"
               onClick={() => setShowSetlistDialog(false)}
+              className="rounded-full"
             >
               Batal
             </Button>
             <Button
               onClick={handleSaveSetlist}
               disabled={updateGroup.isPending}
-              className="bg-gradient-to-r from-neon-cyan to-neon-blue"
+              className="rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
             >
-              {updateGroup.isPending ? 'Menyimpan...' : 'Simpan'}
+              {updateGroup.isPending ? "Menyimpan..." : "Simpan"}
             </Button>
           </DialogFooter>
         </DialogContent>

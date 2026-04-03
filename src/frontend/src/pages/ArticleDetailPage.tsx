@@ -1,41 +1,49 @@
-import { useParams, useNavigate } from '@tanstack/react-router';
-import { useGetArticle, useGetCommentsByContentId, useAddComment, useIsCallerAdmin } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { Skeleton } from '../components/ui/skeleton';
-import { Separator } from '../components/ui/separator';
-import { ArrowLeft, Clock, MessageSquare, ImageOff } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+import { ArrowLeft, Clock, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
+import { Skeleton } from "../components/ui/skeleton";
+import { Textarea } from "../components/ui/textarea";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useAddComment,
+  useGetArticle,
+  useGetCommentsByContentId,
+} from "../hooks/useQueries";
 
 export default function ArticleDetailPage() {
-  const { articleId } = useParams({ from: '/news/$articleId' });
+  const { articleId } = useParams({ from: "/news/$articleId" });
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
   const { data: article, isLoading } = useGetArticle(BigInt(articleId));
-  const { data: comments, isLoading: commentsLoading } = useGetCommentsByContentId(BigInt(articleId));
+  const { data: comments, isLoading: commentsLoading } =
+    useGetCommentsByContentId(BigInt(articleId));
   const addComment = useAddComment();
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
 
   const isAuthenticated = !!identity;
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) {
-      toast.error('Komentar tidak boleh kosong');
+      toast.error("Komentar tidak boleh kosong");
       return;
     }
 
     try {
-      await addComment.mutateAsync({ contentId: BigInt(articleId), content: commentText.trim() });
-      setCommentText('');
-      toast.success('Komentar berhasil ditambahkan');
+      await addComment.mutateAsync({
+        contentId: BigInt(articleId),
+        content: commentText.trim(),
+      });
+      setCommentText("");
+      toast.success("Komentar berhasil ditambahkan");
     } catch (error) {
-      toast.error('Gagal menambahkan komentar');
+      toast.error("Gagal menambahkan komentar");
       console.error(error);
     }
   };
@@ -63,14 +71,16 @@ export default function ArticleDetailPage() {
     );
   }
 
-  const sortedComments = [...(comments || [])].sort((a, b) => Number(b.timestamp - a.timestamp));
+  const sortedComments = [...(comments || [])].sort((a, b) =>
+    Number(b.timestamp - a.timestamp),
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
-          onClick={() => navigate({ to: '/news' })}
+          onClick={() => navigate({ to: "/news" })}
           className="mb-6 gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -78,39 +88,35 @@ export default function ArticleDetailPage() {
         </Button>
 
         <article className="mx-auto max-w-4xl">
-          <Card className="overflow-hidden">
-            {article.image ? (
-              <div className="relative h-96 overflow-hidden">
-                <img
-                  src={article.image.getDirectURL()}
-                  alt={article.title}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="relative h-96 overflow-hidden bg-muted flex items-center justify-center">
-                <ImageOff className="h-16 w-16 text-muted-foreground" />
-              </div>
-            )}
+          <Card className="overflow-hidden glass-strong border-border/50">
             <CardContent className="p-8">
               <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                {formatDistanceToNow(Number(article.date) / 1000000, { addSuffix: true, locale: id })}
+                {formatDistanceToNow(Number(article.date) / 1000000, {
+                  addSuffix: true,
+                  locale: id,
+                })}
               </div>
-              <h1 className="mb-6 text-3xl font-bold">{article.title}</h1>
+              <h1 className="mb-6 text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                {article.title}
+              </h1>
               <div className="prose prose-lg dark:prose-invert max-w-none">
-                <p className="whitespace-pre-wrap">{article.content}</p>
+                <p className="whitespace-pre-wrap text-foreground/90">
+                  {article.content}
+                </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Comments Section */}
           <div className="mt-8">
-            <Card>
+            <Card className="glass-strong border-border/50">
               <CardContent className="p-6">
                 <div className="mb-6 flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  <h2 className="text-xl font-semibold">Komentar ({sortedComments.length})</h2>
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold">
+                    Komentar ({sortedComments.length})
+                  </h2>
                 </div>
 
                 {isAuthenticated ? (
@@ -119,15 +125,19 @@ export default function ArticleDetailPage() {
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Tulis komentar Anda..."
-                      className="mb-3"
+                      className="mb-3 glass border-primary/20 focus:border-primary/50"
                       rows={3}
                     />
-                    <Button type="submit" disabled={addComment.isPending}>
-                      {addComment.isPending ? 'Mengirim...' : 'Kirim Komentar'}
+                    <Button
+                      type="submit"
+                      disabled={addComment.isPending}
+                      className="gradient-primary hover:neon-glow-hover transition-glow"
+                    >
+                      {addComment.isPending ? "Mengirim..." : "Kirim Komentar"}
                     </Button>
                   </form>
                 ) : (
-                  <div className="mb-6 rounded-lg bg-muted p-4 text-center">
+                  <div className="mb-6 rounded-lg glass p-4 text-center">
                     <p className="text-sm text-muted-foreground">
                       Silakan masuk untuk menambahkan komentar
                     </p>
@@ -143,20 +153,30 @@ export default function ArticleDetailPage() {
                     ))}
                   </div>
                 ) : sortedComments.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada komentar</p>
+                  <p className="text-center text-muted-foreground">
+                    Belum ada komentar
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     {sortedComments.map((comment) => (
-                      <div key={comment.id.toString()} className="rounded-lg bg-muted/50 p-4">
+                      <div
+                        key={comment.id.toString()}
+                        className="rounded-lg glass p-4 border border-border/30"
+                      >
                         <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                           <span className="font-medium text-foreground">
                             {comment.author.toString().slice(0, 8)}...
                           </span>
                           <span>•</span>
                           <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(Number(comment.timestamp) / 1000000, { addSuffix: true, locale: id })}
+                          {formatDistanceToNow(
+                            Number(comment.timestamp) / 1000000,
+                            { addSuffix: true, locale: id },
+                          )}
                         </div>
-                        <p className="whitespace-pre-wrap text-sm">{comment.content}</p>
+                        <p className="whitespace-pre-wrap text-sm">
+                          {comment.content}
+                        </p>
                       </div>
                     ))}
                   </div>

@@ -1,16 +1,19 @@
 import Array "mo:core/Array";
+import Iter "mo:core/Iter";
+import Map "mo:core/Map";
+import Nat "mo:core/Nat";
 import Order "mo:core/Order";
+import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
-import Map "mo:core/Map";
-import Iter "mo:core/Iter";
-import Nat "mo:core/Nat";
 import Time "mo:core/Time";
-import Principal "mo:core/Principal";
+import List "mo:core/List";
+
+import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 import MixinStorage "blob-storage/Mixin";
-import Storage "blob-storage/Storage";
-import AccessControl "authorization/access-control";
+
+
 
 actor {
   include MixinStorage();
@@ -28,15 +31,14 @@ actor {
   public type Article = {
     id : Nat;
     title : Text;
-    image : ?Storage.ExternalBlob;
     content : Text;
     date : Time.Time;
     archived : Bool;
   };
 
   module Article {
-    public func compare(article1 : Article, article2 : Article) : Order.Order {
-      Nat.compare(article1.id, article2.id);
+    public func compare(a : Article, b : Article) : Order.Order {
+      if (a.id < b.id) { #less } else if (a.id > b.id) { #greater } else { #equal };
     };
   };
 
@@ -50,8 +52,8 @@ actor {
   };
 
   module Rumor {
-    public func compare(rumor1 : Rumor, rumor2 : Rumor) : Order.Order {
-      Nat.compare(rumor1.id, rumor2.id);
+    public func compare(a : Rumor, b : Rumor) : Order.Order {
+      if (a.id < b.id) { #less } else if (a.id > b.id) { #greater } else { #equal };
     };
   };
 
@@ -72,8 +74,8 @@ actor {
   };
 
   module Discussion {
-    public func compare(discussion1 : Discussion, discussion2 : Discussion) : Order.Order {
-      Nat.compare(discussion1.id, discussion2.id);
+    public func compare(a : Discussion, b : Discussion) : Order.Order {
+      if (a.id < b.id) { #less } else if (a.id > b.id) { #greater } else { #equal };
     };
   };
 
@@ -87,16 +89,9 @@ actor {
   };
 
   module Comment {
-    public func compare(comment1 : Comment, comment2 : Comment) : Order.Order {
-      Nat.compare(comment1.id, comment2.id);
+    public func compare(a : Comment, b : Comment) : Order.Order {
+      if (a.id < b.id) { #less } else if (a.id > b.id) { #greater } else { #equal };
     };
-  };
-
-  public type Trending = {
-    id : Nat;
-    contentId : Nat;
-    contentType : Text;
-    timestamp : Time.Time;
   };
 
   public type Group = {
@@ -106,10 +101,11 @@ actor {
     theaterLocation : Text;
     memberCount : Nat;
     members : [Member];
-    schedules : [Schedule];
+    schedules : [ScheduleWithGroup];
     news : [GroupNews];
     discography : Discography;
     setlists : [Setlist];
+    active : Bool;
   };
 
   public type Member = {
@@ -121,10 +117,11 @@ actor {
     bio : Text;
   };
 
-  public type Schedule = {
+  public type ScheduleWithGroup = {
     date : Time.Time;
     event : Text;
     location : Text;
+    groupName : Text;
   };
 
   public type GroupNews = {
@@ -158,7 +155,6 @@ actor {
 
   public type CreateArticleRequest = {
     title : Text;
-    image : ?Storage.ExternalBlob;
     content : Text;
   };
 
@@ -174,44 +170,22 @@ actor {
     content : Text;
   };
 
-  public type HomepageContent = {
-    articles : [Article];
-    rumors : [Rumor];
-    discussions : [Discussion];
-    trending : [Trending];
-    trendingTable : [TrendingTable];
-    latestArticlesTable : [LatestArticleTable];
-  };
-
-  public type TrendingTable = {
-    itemType : Text; // "Update", "Rumor", or "Discuss"
-    itemId : Nat;
-    timestamp : Time.Time;
-  };
-
-  public type LatestArticleTable = {
-    itemType : Text; // "Update", "Rumor", or "Discuss"
-    itemId : Nat;
-    uploadDate : Time.Time;
-  };
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
 
   var articleIdCounter = 0;
   var rumorIdCounter = 0;
   var discussionIdCounter = 0;
   var commentIdCounter = 0;
-  var trendingIdCounter = 0;
 
   let articles = Map.empty<Nat, Article>();
   let rumors = Map.empty<Nat, Rumor>();
   let discussions = Map.empty<Nat, Discussion>();
   let comments = Map.empty<Nat, Comment>();
-  let trending = Map.empty<Nat, Trending>();
   let groups = Map.empty<Text, Group>();
   let userProfiles = Map.empty<Principal, UserProfile>();
 
-  let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
-
+  // User Profile Functions - Require user authentication
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can access profiles");
@@ -233,6 +207,7 @@ actor {
     userProfiles.add(caller, profile);
   };
 
+  // Article Functions
   public shared ({ caller }) func createArticle(request : CreateArticleRequest) : async Nat {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admin can create articles");
@@ -241,7 +216,6 @@ actor {
     let article : Article = {
       id;
       title = request.title;
-      image = request.image;
       content = request.content;
       date = Time.now();
       archived = false;
@@ -251,6 +225,64 @@ actor {
     id;
   };
 
+  public shared ({ caller }) func updateArticle(id : Nat, title : Text, content : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can update articles");
+    };
+    switch (articles.get(id)) {
+      case (null) { Runtime.trap("Article not found") };
+      case (?article) {
+        let updatedArticle : Article = {
+          id;
+          title;
+          content;
+          date = Time.now();
+          archived = article.archived;
+        };
+        articles.add(id, updatedArticle);
+      };
+    };
+  };
+
+  public shared ({ caller }) func archiveArticle(id : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can archive articles");
+    };
+    switch (articles.get(id)) {
+      case (null) { Runtime.trap("Article not found") };
+      case (?article) {
+        let archivedArticle : Article = {
+          id;
+          title = article.title;
+          content = article.content;
+          date = article.date;
+          archived = true;
+        };
+        articles.add(id, archivedArticle);
+      };
+    };
+  };
+
+  public shared ({ caller }) func restoreArticle(id : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can restore articles");
+    };
+    switch (articles.get(id)) {
+      case (null) { Runtime.trap("Article not found") };
+      case (?article) {
+        let restoredArticle : Article = {
+          id;
+          title = article.title;
+          content = article.content;
+          date = article.date;
+          archived = false;
+        };
+        articles.add(id, restoredArticle);
+      };
+    };
+  };
+
+  // Rumor Functions
   public shared ({ caller }) func createRumor(request : CreateRumorRequest) : async Nat {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admin can create rumors");
@@ -267,86 +299,6 @@ actor {
     rumors.add(id, rumor);
     rumorIdCounter += 1;
     id;
-  };
-
-  public shared ({ caller }) func createDiscussion(request : CreateDiscussionRequest) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only logged-in users can create discussions");
-    };
-    let id = discussionIdCounter;
-    let discussion : Discussion = {
-      id;
-      title = request.title;
-      category = request.category;
-      content = request.content;
-      author = caller;
-      timestamp = Time.now();
-      archived = false;
-    };
-    discussions.add(id, discussion);
-    discussionIdCounter += 1;
-    id;
-  };
-
-  public shared ({ caller }) func addComment(contentId : Nat, content : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only logged-in users can comment");
-    };
-    let id = commentIdCounter;
-    let comment : Comment = {
-      id;
-      contentId;
-      author = caller;
-      content;
-      timestamp = Time.now();
-      archived = false;
-    };
-    comments.add(id, comment);
-    commentIdCounter += 1;
-    id;
-  };
-
-  public shared ({ caller }) func addTrending(contentId : Nat, contentType : Text) : async Nat {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can add trending content");
-    };
-    let id = trendingIdCounter;
-    let trend : Trending = {
-      id;
-      contentId;
-      contentType;
-      timestamp = Time.now();
-    };
-    trending.add(id, trend);
-    trendingIdCounter += 1;
-    id;
-  };
-
-  public shared ({ caller }) func createGroup(group : Group) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can create groups");
-    };
-    groups.add(group.name, group);
-  };
-
-  public shared ({ caller }) func updateArticle(id : Nat, title : Text, image : ?Storage.ExternalBlob, content : Text) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can update articles");
-    };
-    switch (articles.get(id)) {
-      case (null) { Runtime.trap("Article not found") };
-      case (?article) {
-        let updatedArticle : Article = {
-          id;
-          title;
-          image;
-          content;
-          date = Time.now();
-          archived = article.archived;
-        };
-        articles.add(id, updatedArticle);
-      };
-    };
   };
 
   public shared ({ caller }) func updateRumor(id : Nat, title : Text, content : Text, status : Status) : async () {
@@ -369,85 +321,22 @@ actor {
     };
   };
 
-  public shared ({ caller }) func updateDiscussion(id : Nat, title : Text, category : Text, content : Text) : async () {
-    switch (discussions.get(id)) {
-      case (null) { Runtime.trap("Discussion not found") };
-      case (?discussion) {
-        if (caller != discussion.author and not AccessControl.isAdmin(accessControlState, caller)) {
-          Runtime.trap("Unauthorized: Only author or admin can update discussion");
-        };
-
-        let updatedDiscussion : Discussion = {
-          id;
-          title;
-          category;
-          content;
-          author = discussion.author;
-          timestamp = Time.now();
-          archived = discussion.archived;
-        };
-        discussions.add(id, updatedDiscussion);
-      };
-    };
-  };
-
-  public shared ({ caller }) func updateComment(id : Nat, content : Text) : async () {
-    switch (comments.get(id)) {
-      case (null) { Runtime.trap("Comment not found") };
-      case (?comment) {
-        if (caller != comment.author and not AccessControl.isAdmin(accessControlState, caller)) {
-          Runtime.trap("Unauthorized: Only author or admin can update comment");
-        };
-
-        let updatedComment : Comment = {
-          id;
-          contentId = comment.contentId;
-          author = comment.author;
-          content;
-          timestamp = Time.now();
-          archived = comment.archived;
-        };
-        comments.add(id, updatedComment);
-      };
-    };
-  };
-
-  public shared ({ caller }) func updateGroup(group : Group) : async () {
+  public shared ({ caller }) func updateRumorStatus(id : Nat, status : Status) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can update groups");
+      Runtime.trap("Unauthorized: Only admin can update rumor status");
     };
-    if (not groups.containsKey(group.name)) {
-      Runtime.trap("Group not found");
-    };
-    groups.add(group.name, group);
-  };
-
-  public shared ({ caller }) func deleteGroup(name : Text) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can delete groups");
-    };
-    if (not groups.containsKey(name)) {
-      Runtime.trap("Group not found");
-    };
-    groups.remove(name);
-  };
-
-  public shared ({ caller }) func archiveArticle(id : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can archive articles");
-    };
-    switch (articles.get(id)) {
-      case (null) { Runtime.trap("Article not found") };
-      case (?article) {
-        let archivedArticle : Article = {
-          id;
-          title = article.title;
-          image = article.image;
-          content = article.content;
-          date = article.date;
-          archived = true;
+    switch (rumors.get(id)) {
+      case (null) { Runtime.trap("Rumor not found") };
+      case (?rumor) {
+        let updatedRumor : Rumor = {
+          id = rumor.id;
+          title = rumor.title;
+          content = rumor.content;
+          status;
+          date = rumor.date;
+          archived = rumor.archived;
         };
-        articles.add(id, archivedArticle);
+        rumors.add(id, updatedRumor);
       };
     };
   };
@@ -468,6 +357,68 @@ actor {
           archived = true;
         };
         rumors.add(id, archivedRumor);
+      };
+    };
+  };
+
+  public shared ({ caller }) func restoreRumor(id : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can restore rumors");
+    };
+    switch (rumors.get(id)) {
+      case (null) { Runtime.trap("Rumor not found") };
+      case (?rumor) {
+        let restoredRumor : Rumor = {
+          id;
+          title = rumor.title;
+          content = rumor.content;
+          status = rumor.status;
+          date = rumor.date;
+          archived = false;
+        };
+        rumors.add(id, restoredRumor);
+      };
+    };
+  };
+
+  // Discussion Functions
+  public shared ({ caller }) func createDiscussion(request : CreateDiscussionRequest) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only logged-in users can create discussions");
+    };
+    let id = discussionIdCounter;
+    let discussion : Discussion = {
+      id;
+      title = request.title;
+      category = request.category;
+      content = request.content;
+      author = caller;
+      timestamp = Time.now();
+      archived = false;
+    };
+    discussions.add(id, discussion);
+    discussionIdCounter += 1;
+    id;
+  };
+
+  public shared ({ caller }) func updateDiscussion(id : Nat, title : Text, category : Text, content : Text) : async () {
+    switch (discussions.get(id)) {
+      case (null) { Runtime.trap("Discussion not found") };
+      case (?discussion) {
+        if (caller != discussion.author and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only author or admin can update discussion");
+        };
+
+        let updatedDiscussion : Discussion = {
+          id;
+          title;
+          category;
+          content;
+          author = discussion.author;
+          timestamp = Time.now();
+          archived = discussion.archived;
+        };
+        discussions.add(id, updatedDiscussion);
       };
     };
   };
@@ -493,6 +444,67 @@ actor {
     };
   };
 
+  public shared ({ caller }) func restoreDiscussion(id : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can restore discussions");
+    };
+    switch (discussions.get(id)) {
+      case (null) { Runtime.trap("Discussion not found") };
+      case (?discussion) {
+        let restoredDiscussion : Discussion = {
+          id;
+          title = discussion.title;
+          category = discussion.category;
+          content = discussion.content;
+          author = discussion.author;
+          timestamp = discussion.timestamp;
+          archived = false;
+        };
+        discussions.add(id, restoredDiscussion);
+      };
+    };
+  };
+
+  // Comment Functions
+  public shared ({ caller }) func addComment(contentId : Nat, content : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only logged-in users can comment");
+    };
+    let id = commentIdCounter;
+    let comment : Comment = {
+      id;
+      contentId;
+      author = caller;
+      content;
+      timestamp = Time.now();
+      archived = false;
+    };
+    comments.add(id, comment);
+    commentIdCounter += 1;
+    id;
+  };
+
+  public shared ({ caller }) func updateComment(id : Nat, content : Text) : async () {
+    switch (comments.get(id)) {
+      case (null) { Runtime.trap("Comment not found") };
+      case (?comment) {
+        if (caller != comment.author and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only author or admin can update comment");
+        };
+
+        let updatedComment : Comment = {
+          id;
+          contentId = comment.contentId;
+          author = comment.author;
+          content;
+          timestamp = comment.timestamp;
+          archived = comment.archived;
+        };
+        comments.add(id, updatedComment);
+      };
+    };
+  };
+
   public shared ({ caller }) func archiveComment(id : Nat) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admin can archive comments");
@@ -513,6 +525,72 @@ actor {
     };
   };
 
+  public shared ({ caller }) func restoreComment(id : Nat) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can restore comments");
+    };
+    switch (comments.get(id)) {
+      case (null) { Runtime.trap("Comment not found") };
+      case (?comment) {
+        let restoredComment : Comment = {
+          id;
+          contentId = comment.contentId;
+          author = comment.author;
+          content = comment.content;
+          timestamp = comment.timestamp;
+          archived = false;
+        };
+        comments.add(id, restoredComment);
+      };
+    };
+  };
+
+  // Group Functions
+  public shared ({ caller }) func createGroup(group : Group) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can create groups");
+    };
+    groups.add(group.name, group);
+  };
+
+  public shared ({ caller }) func updateGroup(group : Group) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can update groups");
+    };
+    if (not groups.containsKey(group.name)) {
+      Runtime.trap("Group not found");
+    };
+    groups.add(group.name, group);
+  };
+
+  public shared ({ caller }) func deleteGroup(name : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can delete groups");
+    };
+    if (not groups.containsKey(name)) {
+      Runtime.trap("Group not found");
+    };
+    groups.remove(name);
+  };
+
+  public shared ({ caller }) func renameGroup(oldName : Text, newName : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can rename groups");
+    };
+    if (groups.containsKey(newName)) {
+      Runtime.trap("Already exists: Cannot rename because " # newName # " already exists");
+    };
+    switch (groups.get(oldName)) {
+      case (null) { Runtime.trap("Group not found: " # oldName) };
+      case (?group) {
+        let newGroup : Group = { group with name = newName };
+        groups.add(newName, newGroup);
+        groups.remove(oldName);
+      };
+    };
+  };
+
+  // Public Query Functions - No authentication required (accessible to guests)
   public query func getArticle(id : Nat) : async Article {
     switch (articles.get(id)) {
       case (null) { Runtime.trap("Article not found") };
@@ -541,13 +619,6 @@ actor {
     };
   };
 
-  public query func getTrending(id : Nat) : async Trending {
-    switch (trending.get(id)) {
-      case (null) { Runtime.trap("Trending not found") };
-      case (?trend) { trend };
-    };
-  };
-
   public query func getGroup(name : Text) : async Group {
     switch (groups.get(name)) {
       case (null) { Runtime.trap("Group not found") };
@@ -571,61 +642,26 @@ actor {
     comments.values().toArray().sort();
   };
 
-  public query func getAllTrending() : async [Trending] {
-    trending.values().toArray();
-  };
-
   public query func getAllGroups() : async [Group] {
-    groups.values().toArray();
+    let groupEntries = groups.toArray();
+    let sortedEntries = groupEntries.sort(func(a, b) { Text.compare(a.0, b.0) });
+    let sortedGroups = sortedEntries.map(func((name, group)) { group });
+    sortedGroups;
   };
 
-  public query func getHomepageContent() : async HomepageContent {
-    let allArticles = articles.values().toArray().filter(func(article) { not article.archived }).sort();
-    let allRumors = rumors.values().toArray().filter(func(rumor) { not rumor.archived }).sort();
-    let allDiscussions = discussions.values().toArray().filter(func(discussion) { not discussion.archived }).sort();
-    let allTrending = trending.values().toArray();
-
-    let trendingTable = allTrending.map(
-      func(trend) {
-        { itemType = trend.contentType; itemId = trend.contentId; timestamp = trend.timestamp };
-      }
-    );
-
-    let latestArticlesUnsorted = allArticles.map(
-      func(article) {
-        { itemType = "Update"; itemId = article.id; uploadDate = article.date };
-      }
-    );
-
-    let allLatest = latestArticlesUnsorted.concat(
-      allRumors.map(
-        func(rumor) {
-          { itemType = "Rumor"; itemId = rumor.id; uploadDate = rumor.date };
-        }
-      )
-    ).concat(
-      allDiscussions.map(
-        func(discussion) {
-          { itemType = "Discuss"; itemId = discussion.id; uploadDate = discussion.timestamp };
-        }
-      )
-    );
-
-    func compareLatestArticles(a : LatestArticleTable, b : LatestArticleTable) : Order.Order {
-      if (a.uploadDate < b.uploadDate) { #less } else if (a.uploadDate > b.uploadDate) { #greater } else {
-        #equal;
-      };
+  func compareByDate(a : { date : Time.Time }, b : { date : Time.Time }) : Order.Order {
+    if (a.date < b.date) { #greater } else if (a.date > b.date) {
+      #less;
+    } else {
+      #equal;
     };
+  };
 
-    let latestArticlesTable = allLatest.sort(compareLatestArticles);
-
-    {
-      articles = allArticles;
-      rumors = allRumors;
-      discussions = allDiscussions;
-      trending = allTrending;
-      trendingTable;
-      latestArticlesTable;
+  func compareByTimestamp(a : { timestamp : Time.Time }, b : { timestamp : Time.Time }) : Order.Order {
+    if (a.timestamp < b.timestamp) { #greater } else if (a.timestamp > b.timestamp) {
+      #less;
+    } else {
+      #equal;
     };
   };
 
@@ -672,94 +708,100 @@ actor {
     filtered.toArray();
   };
 
-  public shared ({ caller }) func restoreArticle(id : Nat) : async () {
+  public shared ({ caller }) func deleteArticle(id : Nat) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can restore articles");
+      Runtime.trap("Unauthorized: Only admin can delete articles");
     };
-    switch (articles.get(id)) {
-      case (null) { Runtime.trap("Article not found") };
-      case (?article) {
-        let restoredArticle : Article = {
-          id;
-          title = article.title;
-          image = article.image;
-          content = article.content;
-          date = article.date;
-          archived = false;
-        };
-        articles.add(id, restoredArticle);
-      };
+    if (not articles.containsKey(id)) {
+      Runtime.trap("Article not found");
     };
+    articles.remove(id);
   };
 
-  public shared ({ caller }) func restoreRumor(id : Nat) : async () {
+  public shared ({ caller }) func deleteRumor(id : Nat) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can restore rumors");
+      Runtime.trap("Unauthorized: Only admin can delete rumors");
     };
-    switch (rumors.get(id)) {
-      case (null) { Runtime.trap("Rumor not found") };
-      case (?rumor) {
-        let restoredRumor : Rumor = {
-          id;
-          title = rumor.title;
-          content = rumor.content;
-          status = rumor.status;
-          date = rumor.date;
-          archived = false;
-        };
-        rumors.add(id, restoredRumor);
-      };
+    if (not rumors.containsKey(id)) {
+      Runtime.trap("Rumor not found");
     };
+    rumors.remove(id);
   };
 
-  public shared ({ caller }) func restoreDiscussion(id : Nat) : async () {
+  public shared ({ caller }) func deleteDiscussion(id : Nat) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can restore discussions");
+      Runtime.trap("Unauthorized: Only admin can delete discussions");
     };
     switch (discussions.get(id)) {
       case (null) { Runtime.trap("Discussion not found") };
-      case (?discussion) {
-        let restoredDiscussion : Discussion = {
-          id;
-          title = discussion.title;
-          category = discussion.category;
-          content = discussion.content;
-          author = discussion.author;
-          timestamp = discussion.timestamp;
-          archived = false;
+      case (?_) {
+        if (not discussions.containsKey(id)) {
+          Runtime.trap("Discussion NOT FOUND");
         };
-        discussions.add(id, restoredDiscussion);
+        discussions.remove(id);
       };
     };
   };
 
-  public shared ({ caller }) func restoreComment(id : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can restore comments");
-    };
-    switch (comments.get(id)) {
-      case (null) { Runtime.trap("Comment not found") };
-      case (?comment) {
-        let restoredComment : Comment = {
-          id;
-          contentId = comment.contentId;
-          author = comment.author;
-          content = comment.content;
-          timestamp = comment.timestamp;
-          archived = false;
-        };
-        comments.add(id, restoredComment);
-      };
+  public query func searchContent(search : Text) : async {
+    articles : [Article];
+    rumors : [Rumor];
+    discussions : [Discussion];
+    groups : [Group];
+    members : [Member];
+  } {
+    let matchingArticles = articles.values().toArray().filter(
+      func(article) { Text.equal(article.title, search) }
+    );
+    let matchingRumors = rumors.values().toArray().filter(
+      func(rumor) { Text.equal(rumor.title, search) }
+    );
+    let matchingDiscussions = discussions.values().toArray().filter(
+      func(discussion) { Text.equal(discussion.title, search) }
+    );
+    let matchingGroups = groups.values().toArray().filter(
+      func(group) { Text.equal(group.name, search) }
+    );
+    let matchingMembers = groups.values().toArray().map(
+      func(group) {
+        group.members.filter(
+          func(member) { Text.equal(member.fullName, search) }
+        );
+      }
+    ).flatten();
+
+    {
+      articles = matchingArticles;
+      rumors = matchingRumors;
+      discussions = matchingDiscussions;
+      groups = matchingGroups;
+      members = matchingMembers;
     };
   };
 
-  public shared ({ caller }) func removeTrending(id : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admin can remove trending content");
+  public query func getAllUpcomingEvents() : async [ScheduleWithGroup] {
+    let allSchedules : List.List<ScheduleWithGroup> = List.empty<ScheduleWithGroup>();
+
+    for ((groupName, group) in groups.entries()) {
+      for (schedule in group.schedules.values()) {
+        let scheduleWithGroup : ScheduleWithGroup = {
+          schedule with groupName;
+        };
+        allSchedules.add(scheduleWithGroup);
+      };
     };
-    if (not trending.containsKey(id)) {
-      Runtime.trap("Trending content not found");
-    };
-    trending.remove(id);
+
+    let currentTime = Time.now();
+    let filteredSchedules = allSchedules.toArray().filter(
+      func(schedule) { schedule.date > currentTime }
+    );
+
+    filteredSchedules.sort(
+      func(a, b) {
+        if (a.date < b.date) { #less } else if (a.date > b.date) {
+          #greater;
+        } else { #equal };
+      }
+    );
   };
 };

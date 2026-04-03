@@ -1,11 +1,18 @@
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useIsCallerAdmin } from '../hooks/useQueries';
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
-import { Button } from './ui/button';
-import { Menu, X, User, LogOut, Shield, Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
-import { useTheme } from 'next-themes';
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { LogOut, Menu, Moon, Search, Shield, Sun, User, X } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useState } from "react";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useGetCallerUserProfile,
+  useIsCallerAdmin,
+  useSearchContent,
+} from "../hooks/useQueries";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
 
 export default function Header() {
   const { login, clear, loginStatus, identity } = useInternetIdentity();
@@ -15,22 +22,25 @@ export default function Header() {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { data: searchResults } = useSearchContent(searchQuery);
 
   const isAuthenticated = !!identity;
-  const disabled = loginStatus === 'logging-in';
+  const disabled = loginStatus === "logging-in";
 
   const handleAuth = async () => {
     if (isAuthenticated) {
       await clear();
       queryClient.clear();
-      navigate({ to: '/' });
+      navigate({ to: "/" });
     } else {
       try {
         await login();
       } catch (error: any) {
-        console.error('Login error:', error);
-        if (error.message === 'User is already authenticated') {
+        console.error("Login error:", error);
+        if (error.message === "User is already authenticated") {
           await clear();
           setTimeout(() => login(), 300);
         }
@@ -39,73 +49,114 @@ export default function Header() {
   };
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleResultClick = (type: string, id: bigint | string) => {
+    setShowSearch(false);
+    setSearchQuery("");
+
+    if (type === "article") {
+      navigate({
+        to: "/news/$articleId",
+        params: { articleId: id.toString() },
+      });
+    } else if (type === "rumor") {
+      navigate({ to: "/rumors/$rumorId", params: { rumorId: id.toString() } });
+    } else if (type === "discussion") {
+      navigate({
+        to: "/discuss/$discussionId",
+        params: { discussionId: id.toString() },
+      });
+    } else if (type === "group") {
+      navigate({
+        to: "/groups/$groupName",
+        params: { groupName: id.toString() },
+      });
+    }
   };
 
   const navItems = [
-    { label: 'Beranda', path: '/' },
-    { label: '48 LIVE UPDATE', path: '/news' },
-    { label: '48 LIVE RUMOR', path: '/rumors' },
-    { label: '48 LIVE DISCUSS', path: '/discuss' },
-    { label: 'Groups', path: '/groups' },
+    { label: "Home", path: "/" },
+    { label: "48 LIVE UPDATE", path: "/news" },
+    { label: "48 LIVE RUMOR", path: "/rumors" },
+    { label: "48 LIVE DISCUSS", path: "/discuss" },
+    { label: "48Group", path: "/groups" },
   ];
 
   const currentPath = routerState.location.pathname;
 
+  const hasSearchResults =
+    searchResults &&
+    (searchResults.articles.length > 0 ||
+      searchResults.rumors.length > 0 ||
+      searchResults.discussions.length > 0 ||
+      searchResults.groups.length > 0 ||
+      searchResults.members.length > 0);
+
   return (
-    <header className="sticky top-0 z-50 w-full glass-strong border-b transition-smooth">
+    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/80 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <button
-            onClick={() => navigate({ to: '/' })}
-            className="flex items-center gap-3 transition-smooth hover:opacity-80"
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="flex items-center gap-2 transition-smooth hover:opacity-80"
           >
-            <img 
-              src="/assets/generated/app-logo-futuristic.dim_200x200.png" 
-              alt="48 LIVE UPDATE" 
-              className="h-10 w-10 animate-glow-pulse" 
-            />
-            <span className="text-xl font-bold neon-text bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-              48 LIVE UPDATE
-            </span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-primary/10 to-accent/10">
+              <span className="text-lg font-bold text-gradient">
+                48 LIVE UPDATE
+              </span>
+            </div>
           </button>
 
           {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
               <button
+                type="button"
                 key={item.path}
                 onClick={() => navigate({ to: item.path })}
-                className={`text-sm font-medium transition-smooth hover:text-primary relative group ${
-                  currentPath === item.path ? 'text-primary' : 'text-muted-foreground'
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-smooth ${
+                  currentPath === item.path
+                    ? "bg-gradient-to-r from-primary/20 to-accent/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
                 {item.label}
-                {currentPath === item.path && (
-                  <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-secondary rounded-full" />
-                )}
-                <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-secondary rounded-full opacity-0 group-hover:opacity-100 transition-smooth" />
               </button>
             ))}
           </nav>
 
-          {/* Desktop Auth & Theme Toggle */}
-          <div className="hidden items-center gap-3 md:flex">
+          {/* Desktop Auth & Theme Toggle & Search */}
+          <div className="hidden items-center gap-2 md:flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSearch(!showSearch)}
+              className="rounded-full hover:bg-primary/10"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="rounded-full transition-glow hover:neon-glow"
+              className="rounded-full hover:bg-primary/10"
             >
-              {theme === 'dark' ? (
+              {theme === "dark" ? (
                 <Sun className="h-5 w-5" />
               ) : (
                 <Moon className="h-5 w-5" />
               )}
             </Button>
             {isAuthenticated && userProfile && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-secondary/50 to-accent/30 text-sm">
                 <User className="h-4 w-4 text-primary" />
                 <span className="font-medium">{userProfile.name}</span>
               </div>
@@ -114,8 +165,8 @@ export default function Header() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate({ to: '/admin' })}
-                className="gap-2 glass border-primary/30 hover:neon-glow-hover transition-glow"
+                onClick={() => navigate({ to: "/admin" })}
+                className="gap-2 rounded-full border-primary/30 hover:bg-primary/10"
               >
                 <Shield className="h-4 w-4" />
                 Admin
@@ -124,12 +175,12 @@ export default function Header() {
             <Button
               onClick={handleAuth}
               disabled={disabled}
-              variant={isAuthenticated ? 'outline' : 'default'}
+              variant={isAuthenticated ? "outline" : "default"}
               size="sm"
-              className={`gap-2 transition-glow ${
-                isAuthenticated 
-                  ? 'glass border-border hover:border-primary/50' 
-                  : 'gradient-primary hover:neon-glow-hover'
+              className={`gap-2 rounded-full ${
+                isAuthenticated
+                  ? "border-primary/30 hover:bg-primary/10"
+                  : "bg-gradient-to-r from-primary to-accent hover:opacity-90"
               }`}
             >
               {isAuthenticated ? (
@@ -138,7 +189,7 @@ export default function Header() {
                   Keluar
                 </>
               ) : (
-                'Masuk'
+                "Masuk Penggemar"
               )}
             </Button>
           </div>
@@ -148,37 +199,215 @@ export default function Header() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setShowSearch(!showSearch)}
+              className="rounded-full"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleTheme}
               className="rounded-full"
             >
-              {theme === 'dark' ? (
+              {theme === "dark" ? (
                 <Sun className="h-5 w-5" />
               ) : (
                 <Moon className="h-5 w-5" />
               )}
             </Button>
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2"
             >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
             </button>
           </div>
         </div>
 
+        {/* Search Bar */}
+        {showSearch && (
+          <div className="pb-4 animate-fade-in relative">
+            <Input
+              type="text"
+              placeholder="Cari artikel, rumor, diskusi, grup, atau member..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="flex-1 rounded-full border-primary/30 focus:border-primary"
+            />
+
+            {/* Search Results Dropdown */}
+            {searchQuery && hasSearchResults && (
+              <Card className="absolute top-full mt-2 w-full max-h-96 overflow-y-auto rounded-2xl border-2 border-primary/20 bg-card shadow-lg z-50">
+                <CardContent className="p-4 space-y-4">
+                  {searchResults.articles.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                        Artikel
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.articles.map((article) => (
+                          <button
+                            type="button"
+                            key={article.id.toString()}
+                            onClick={() =>
+                              handleResultClick("article", article.id)
+                            }
+                            className="w-full text-left p-3 rounded-xl hover:bg-muted/50 transition-smooth"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-primary/20 text-primary border-primary/30 rounded-full">
+                                Artikel
+                              </Badge>
+                              <p className="font-medium">{article.title}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.rumors.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                        Rumor
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.rumors.map((rumor) => (
+                          <button
+                            type="button"
+                            key={rumor.id.toString()}
+                            onClick={() => handleResultClick("rumor", rumor.id)}
+                            className="w-full text-left p-3 rounded-xl hover:bg-muted/50 transition-smooth"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-accent/20 text-accent border-accent/30 rounded-full">
+                                Rumor
+                              </Badge>
+                              <p className="font-medium">{rumor.title}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.discussions.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                        Diskusi
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.discussions.map((discussion) => (
+                          <button
+                            type="button"
+                            key={discussion.id.toString()}
+                            onClick={() =>
+                              handleResultClick("discussion", discussion.id)
+                            }
+                            className="w-full text-left p-3 rounded-xl hover:bg-muted/50 transition-smooth"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-secondary/20 text-secondary border-secondary/30 rounded-full">
+                                Diskusi
+                              </Badge>
+                              <p className="font-medium">{discussion.title}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.groups.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                        Grup
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.groups.map((group) => (
+                          <button
+                            type="button"
+                            key={group.name}
+                            onClick={() =>
+                              handleResultClick("group", group.name)
+                            }
+                            className="w-full text-left p-3 rounded-xl hover:bg-muted/50 transition-smooth"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-primary/20 text-primary border-primary/30 rounded-full">
+                                Grup
+                              </Badge>
+                              <p className="font-medium">{group.name}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.members.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                        Member
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.members.slice(0, 5).map((member) => (
+                          <div
+                            key={member.fullName}
+                            className="p-3 rounded-xl bg-muted/30"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-accent/20 text-accent border-accent/30 rounded-full">
+                                Member
+                              </Badge>
+                              <p className="font-medium">{member.fullName}</p>
+                              {member.team && (
+                                <span className="text-sm text-muted-foreground">
+                                  ({member.team})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {searchQuery && !hasSearchResults && (
+              <Card className="absolute top-full mt-2 w-full rounded-2xl border-2 border-primary/20 bg-card shadow-lg z-50">
+                <CardContent className="p-4 text-center text-muted-foreground">
+                  Tidak ada hasil ditemukan
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-border/50 py-4 md:hidden glass-strong">
-            <nav className="flex flex-col gap-4">
+          <div className="border-t py-4 md:hidden animate-fade-in">
+            <nav className="flex flex-col gap-2">
               {navItems.map((item) => (
                 <button
+                  type="button"
                   key={item.path}
                   onClick={() => {
                     navigate({ to: item.path });
                     setMobileMenuOpen(false);
                   }}
-                  className={`text-left text-sm font-medium transition-smooth hover:text-primary ${
-                    currentPath === item.path ? 'text-primary' : 'text-muted-foreground'
+                  className={`text-left px-4 py-2 text-sm font-medium rounded-lg transition-smooth ${
+                    currentPath === item.path
+                      ? "bg-gradient-to-r from-primary/20 to-accent/20 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
                   {item.label}
@@ -186,19 +415,20 @@ export default function Header() {
               ))}
               {isAdmin && (
                 <button
+                  type="button"
                   onClick={() => {
-                    navigate({ to: '/admin' });
+                    navigate({ to: "/admin" });
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-2 text-left text-sm font-medium text-muted-foreground transition-smooth hover:text-primary"
+                  className="flex items-center gap-2 text-left px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-smooth"
                 >
                   <Shield className="h-4 w-4" />
                   Admin Panel
                 </button>
               )}
-              <div className="flex flex-col gap-2 border-t border-border/50 pt-4">
+              <div className="flex flex-col gap-2 border-t pt-4 mt-2">
                 {isAuthenticated && userProfile && (
-                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg glass">
+                  <div className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-secondary/50 to-accent/30">
                     <User className="h-4 w-4 text-primary" />
                     <span className="font-medium">{userProfile.name}</span>
                   </div>
@@ -206,12 +436,12 @@ export default function Header() {
                 <Button
                   onClick={handleAuth}
                   disabled={disabled}
-                  variant={isAuthenticated ? 'outline' : 'default'}
+                  variant={isAuthenticated ? "outline" : "default"}
                   size="sm"
-                  className={`w-full gap-2 transition-glow ${
-                    isAuthenticated 
-                      ? 'glass border-border' 
-                      : 'gradient-primary hover:neon-glow-hover'
+                  className={`w-full gap-2 rounded-full ${
+                    isAuthenticated
+                      ? "border-primary/30"
+                      : "bg-gradient-to-r from-primary to-accent"
                   }`}
                 >
                   {isAuthenticated ? (
@@ -220,7 +450,7 @@ export default function Header() {
                       Keluar
                     </>
                   ) : (
-                    'Masuk'
+                    "Masuk Penggemar"
                   )}
                 </Button>
               </div>
@@ -231,4 +461,3 @@ export default function Header() {
     </header>
   );
 }
-

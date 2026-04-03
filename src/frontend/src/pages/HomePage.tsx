@@ -1,25 +1,38 @@
-import { useGetHomepageContent } from '../hooks/useQueries';
-import { useNavigate } from '@tanstack/react-router';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Skeleton } from '../components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Clock, TrendingUp, MessageSquare, Sparkles, ImageOff } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { useNavigate } from "@tanstack/react-router";
+import { format, formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Badge } from "../components/ui/badge";
+import { Card, CardContent } from "../components/ui/card";
+import { Skeleton } from "../components/ui/skeleton";
+import {
+  useGetAllUpcomingEvents,
+  useGetUnarchivedArticles,
+  useGetUnarchivedDiscussions,
+  useGetUnarchivedRumors,
+} from "../hooks/useQueries";
 
 export default function HomePage() {
-  const { data, isLoading } = useGetHomepageContent();
+  const { data: articles, isLoading: articlesLoading } =
+    useGetUnarchivedArticles();
+  const { data: rumors, isLoading: rumorsLoading } = useGetUnarchivedRumors();
+  const { data: discussions, isLoading: discussionsLoading } =
+    useGetUnarchivedDiscussions();
+  const { data: upcomingEvents, isLoading: eventsLoading } =
+    useGetAllUpcomingEvents();
   const navigate = useNavigate();
+
+  const isLoading =
+    articlesLoading || rumorsLoading || discussionsLoading || eventsLoading;
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-8">
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-96 w-full rounded-3xl" />
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-80" />
+              <Skeleton key={i} className="h-80 rounded-2xl" />
             ))}
           </div>
         </div>
@@ -27,440 +40,414 @@ export default function HomePage() {
     );
   }
 
-  const articles = data?.articles || [];
-  const rumors = data?.rumors || [];
-  const discussions = data?.discussions || [];
-  const trending = data?.trending || [];
-  const trendingTable = data?.trendingTable || [];
-  const latestArticlesTable = data?.latestArticlesTable || [];
+  const sortedArticles = [...(articles || [])].sort((a, b) =>
+    Number(b.date - a.date),
+  );
+  const sortedRumors = [...(rumors || [])].sort((a, b) =>
+    Number(b.date - a.date),
+  );
+  const sortedDiscussions = [...(discussions || [])].sort((a, b) =>
+    Number(b.timestamp - a.timestamp),
+  );
+
+  // Combine latest content from all types
+  const latestContent = [
+    ...sortedArticles.slice(0, 5).map((a) => ({
+      type: "article",
+      id: a.id,
+      title: a.title,
+      date: a.date,
+    })),
+    ...sortedRumors
+      .slice(0, 5)
+      .map((r) => ({ type: "rumor", id: r.id, title: r.title, date: r.date })),
+    ...sortedDiscussions.slice(0, 5).map((d) => ({
+      type: "discussion",
+      id: d.id,
+      title: d.title,
+      date: d.timestamp,
+    })),
+  ]
+    .sort((a, b) => Number(b.date - a.date))
+    .slice(0, 5);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirm':
-        return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'unconfirm':
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case "confirm":
+        return "bg-success/20 text-success border-success/30";
+      case "unconfirm":
+        return "bg-destructive/20 text-destructive border-destructive/30";
       default:
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        return "bg-warning/20 text-warning border-warning/30";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'confirm':
-        return 'Terkonfirmasi';
-      case 'unconfirm':
-        return 'Tidak Terkonfirmasi';
+      case "confirm":
+        return "Terkonfirmasi";
+      case "unconfirm":
+        return "Tidak Terkonfirmasi";
       default:
-        return 'Menunggu';
+        return "Menunggu";
     }
   };
 
-  const getItemTypeLabel = (type: string) => {
+  const getContentTypeBadgeClass = (type: string) => {
     switch (type) {
-      case 'Update':
-        return 'Berita';
-      case 'Rumor':
-        return 'Rumor';
-      case 'Discuss':
-        return 'Diskusi';
+      case "article":
+        return "bg-primary/20 text-primary border-primary/30";
+      case "rumor":
+        return "bg-accent/20 text-accent border-accent/30";
+      case "discussion":
+        return "bg-secondary/20 text-secondary border-secondary/30";
+      default:
+        return "bg-muted/20 text-muted-foreground border-muted/30";
+    }
+  };
+
+  const getContentTypeLabel = (type: string) => {
+    switch (type) {
+      case "article":
+        return "Berita";
+      case "rumor":
+        return "Rumor";
+      case "discussion":
+        return "Diskusi";
       default:
         return type;
     }
   };
 
-  const getItemTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case 'Update':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'Rumor':
-        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'Discuss':
-        return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-      default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  const handleContentClick = (type: string, id: bigint) => {
+    if (type === "article") {
+      navigate({
+        to: "/news/$articleId",
+        params: { articleId: id.toString() },
+      });
+    } else if (type === "rumor") {
+      navigate({ to: "/rumors/$rumorId", params: { rumorId: id.toString() } });
+    } else if (type === "discussion") {
+      navigate({
+        to: "/discuss/$discussionId",
+        params: { discussionId: id.toString() },
+      });
     }
-  };
-
-  const handleTableRowClick = (itemType: string, itemId: bigint) => {
-    if (itemType === 'Update') {
-      navigate({ to: '/news/$articleId', params: { articleId: itemId.toString() } });
-    } else if (itemType === 'Rumor') {
-      navigate({ to: '/rumors/$rumorId', params: { rumorId: itemId.toString() } });
-    } else if (itemType === 'Discuss') {
-      navigate({ to: '/discuss/$discussionId', params: { discussionId: itemId.toString() } });
-    }
-  };
-
-  const getItemTitle = (itemType: string, itemId: bigint) => {
-    if (itemType === 'Update') {
-      const article = articles.find((a) => a.id === itemId);
-      return article?.title || 'Tidak ditemukan';
-    } else if (itemType === 'Rumor') {
-      const rumor = rumors.find((r) => r.id === itemId);
-      return rumor?.title || 'Tidak ditemukan';
-    } else if (itemType === 'Discuss') {
-      const discussion = discussions.find((d) => d.id === itemId);
-      return discussion?.title || 'Tidak ditemukan';
-    }
-    return 'Tidak ditemukan';
   };
 
   return (
     <div className="min-h-screen">
       {/* Hero Banner */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-secondary/30" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,oklch(var(--primary)/10%),transparent_50%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-secondary/20" />
         <img
-          src="/assets/IMG_7148.jpeg"
+          src="/assets/IMG_7494.webp"
           alt="48 LIVE UPDATE"
-          className="h-64 w-full object-cover opacity-40 md:h-96"
+          className="h-[500px] w-full object-cover opacity-60"
+          onError={(e) => {
+            e.currentTarget.src = "/assets/IMG_7494-1.webp";
+          }}
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center space-y-4 px-4">
-            <h1 className="text-4xl font-bold md:text-6xl neon-text bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+          <div className="text-center space-y-6 px-4">
+            <h1 className="text-5xl md:text-7xl font-bold text-gradient animate-fade-in">
               48 LIVE UPDATE
             </h1>
-            <p className="mt-4 text-lg md:text-xl text-foreground/80 font-medium">
-              Portal Berita & Komunitas Penggemar 48 Group
+            <p className="text-xl md:text-2xl text-foreground/90 font-medium">
+              Website Resmi 48 LIVE UPDATE
             </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-accent animate-pulse" />
-              <span>Wota Experience</span>
-            </div>
           </div>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12">
-        {/* Trending Table */}
-        {trendingTable.length > 0 && (
-          <section className="mb-12">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="p-2 rounded-lg glass neon-glow">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Trending Terbaru
-              </h2>
-            </div>
-            <Card className="glass-strong border-primary/20 overflow-hidden">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border/50 hover:bg-transparent">
-                        <TableHead className="text-primary font-semibold">Tipe</TableHead>
-                        <TableHead className="text-primary font-semibold">Judul</TableHead>
-                        <TableHead className="text-primary font-semibold text-right">Waktu</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {trendingTable
-                        .sort((a, b) => Number(b.timestamp - a.timestamp))
-                        .slice(0, 10)
-                        .map((item, index) => (
-                          <TableRow
-                            key={index}
-                            className="border-border/30 hover:bg-primary/5 cursor-pointer transition-smooth"
-                            onClick={() => handleTableRowClick(item.itemType, item.itemId)}
-                          >
-                            <TableCell>
-                              <Badge className={`${getItemTypeBadgeClass(item.itemType)} border`}>
-                                {getItemTypeLabel(item.itemType)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{getItemTitle(item.itemType, item.itemId)}</TableCell>
-                            <TableCell className="text-right text-muted-foreground text-sm">
-                              {formatDistanceToNow(Number(item.timestamp) / 1000000, { addSuffix: true, locale: id })}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
-        {/* Latest Articles Table */}
-        {latestArticlesTable.length > 0 && (
-          <section className="mb-12">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="p-2 rounded-lg glass neon-glow">
-                <Clock className="h-6 w-6 text-accent" />
-              </div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Konten Terbaru
-              </h2>
-            </div>
-            <Card className="glass-strong border-accent/20 overflow-hidden">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border/50 hover:bg-transparent">
-                        <TableHead className="text-accent font-semibold">Tipe</TableHead>
-                        <TableHead className="text-accent font-semibold">Judul</TableHead>
-                        <TableHead className="text-accent font-semibold text-right">Tanggal Upload</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {latestArticlesTable
-                        .sort((a, b) => Number(b.uploadDate - a.uploadDate))
-                        .slice(0, 15)
-                        .map((item, index) => (
-                          <TableRow
-                            key={index}
-                            className="border-border/30 hover:bg-accent/5 cursor-pointer transition-smooth"
-                            onClick={() => handleTableRowClick(item.itemType, item.itemId)}
-                          >
-                            <TableCell>
-                              <Badge className={`${getItemTypeBadgeClass(item.itemType)} border`}>
-                                {getItemTypeLabel(item.itemType)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{getItemTitle(item.itemType, item.itemId)}</TableCell>
-                            <TableCell className="text-right text-muted-foreground text-sm">
-                              {formatDistanceToNow(Number(item.uploadDate) / 1000000, { addSuffix: true, locale: id })}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
-        {/* Trending Section */}
-        {trending.length > 0 && (
-          <section className="mb-12">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="p-2 rounded-lg glass neon-glow">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Trending
-              </h2>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {trending.slice(0, 3).map((trend) => {
-                if (trend.contentType === 'article') {
-                  const article = articles.find((a) => a.id === trend.contentId);
-                  if (!article) return null;
-                  return (
-                    <Card
-                      key={trend.id.toString()}
-                      className="group cursor-pointer overflow-hidden glass-strong border-primary/20 hover:neon-glow-hover transition-glow"
-                      onClick={() => navigate({ to: '/news/$articleId', params: { articleId: article.id.toString() } })}
-                    >
-                      {article.image ? (
-                        <div className="relative h-48 overflow-hidden">
-                          <img
-                            src={article.image.getDirectURL()}
-                            alt={article.title}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                          <Badge className="absolute right-3 top-3 gap-1 gradient-primary border-0 shadow-neon-md">
-                            <TrendingUp className="h-3 w-3" />
-                            Trending
-                          </Badge>
-                        </div>
-                      ) : (
-                        <div className="relative h-48 overflow-hidden bg-muted flex items-center justify-center">
-                          <ImageOff className="h-12 w-12 text-muted-foreground" />
-                          <Badge className="absolute right-3 top-3 gap-1 gradient-primary border-0 shadow-neon-md">
-                            <TrendingUp className="h-3 w-3" />
-                            Trending
-                          </Badge>
-                        </div>
-                      )}
-                      <CardContent className="p-4">
-                        <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-primary transition-smooth">
-                          {article.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          {formatDistanceToNow(Number(article.date) / 1000000, { addSuffix: true, locale: id })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                } else if (trend.contentType === 'rumor') {
-                  const rumor = rumors.find((r) => r.id === trend.contentId);
-                  if (!rumor) return null;
-                  return (
-                    <Card
-                      key={trend.id.toString()}
-                      className="group cursor-pointer overflow-hidden glass-strong border-primary/20 hover:neon-glow-hover transition-glow"
-                      onClick={() => navigate({ to: '/rumors/$rumorId', params: { rumorId: rumor.id.toString() } })}
-                    >
-                      <CardContent className="p-6">
-                        <div className="mb-3 flex items-center justify-between">
-                          <Badge className={`${getStatusColor(rumor.status)} border`}>
-                            {getStatusLabel(rumor.status)}
-                          </Badge>
-                          <Badge className="gap-1 gradient-primary border-0 shadow-neon-md">
-                            <TrendingUp className="h-3 w-3" />
-                            Trending
-                          </Badge>
-                        </div>
-                        <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-primary transition-smooth">
-                          {rumor.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          {formatDistanceToNow(Number(rumor.date) / 1000000, { addSuffix: true, locale: id })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                }
-                return null;
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Latest News */}
-        <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Berita Terbaru
-            </h2>
-            <button
-              onClick={() => navigate({ to: '/news' })}
-              className="text-sm font-medium text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
-            >
-              Lihat Semua
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </button>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {articles.slice(0, 6).map((article) => (
-              <Card
-                key={article.id.toString()}
-                className="group cursor-pointer overflow-hidden glass-strong border-border/50 hover:border-primary/50 hover:neon-glow-hover transition-glow"
-                onClick={() => navigate({ to: '/news/$articleId', params: { articleId: article.id.toString() } })}
-              >
-                {article.image ? (
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={article.image.getDirectURL()}
-                      alt={article.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                  </div>
-                ) : (
-                  <div className="relative h-48 overflow-hidden bg-muted flex items-center justify-center">
-                    <ImageOff className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                )}
-                <CardContent className="p-4">
-                  <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-primary transition-smooth">
-                    {article.title}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {formatDistanceToNow(Number(article.date) / 1000000, { addSuffix: true, locale: id })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        {/* Latest Rumors */}
-        <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Rumor Terbaru
-            </h2>
-            <button
-              onClick={() => navigate({ to: '/rumors' })}
-              className="text-sm font-medium text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
-            >
-              Lihat Semua
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {rumors.slice(0, 4).map((rumor) => (
-              <Card
-                key={rumor.id.toString()}
-                className="cursor-pointer glass-strong border-border/50 hover:border-primary/50 hover:neon-glow-hover transition-glow group"
-                onClick={() => navigate({ to: '/rumors/$rumorId', params: { rumorId: rumor.id.toString() } })}
-              >
-                <CardContent className="p-6">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Badge className={`${getStatusColor(rumor.status)} border`}>
-                      {getStatusLabel(rumor.status)}
-                    </Badge>
-                  </div>
-                  <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-primary transition-smooth">
-                    {rumor.title}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {formatDistanceToNow(Number(rumor.date) / 1000000, { addSuffix: true, locale: id })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        {/* Latest Discussions */}
+      <div className="container mx-auto px-4 py-12 space-y-12">
+        {/* Upcoming Events */}
         <section>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Diskusi Terbaru
+          <div className="mb-8 text-center">
+            <h2 className="text-3xl font-bold text-gradient mb-2">
+              Upcoming Events
+            </h2>
+            <p className="text-muted-foreground">
+              Acara dan event mendatang dari semua grup 48
+            </p>
+          </div>
+          {!upcomingEvents || upcomingEvents.length === 0 ? (
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+              <CardContent className="p-8 text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <Calendar className="h-8 w-8 text-primary" />
+                  <h3 className="text-2xl font-bold text-foreground">
+                    Belum Ada Event Mendatang
+                  </h3>
+                </div>
+                <p className="text-muted-foreground mb-6">
+                  Saat ini belum ada jadwal event yang akan datang
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingEvents.slice(0, 6).map((event) => (
+                <Card
+                  key={`${event.event}-${String(event.date)}`}
+                  className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 p-3 min-w-[70px]">
+                        <span className="text-2xl font-bold text-gradient">
+                          {format(Number(event.date) / 1000000, "dd", {
+                            locale: id,
+                          })}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(Number(event.date) / 1000000, "MMM", {
+                            locale: id,
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="mb-2 font-semibold text-foreground line-clamp-2">
+                          {event.event} – {event.groupName}
+                        </h3>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          {event.location}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* 5 Konten Terbaru */}
+        {latestContent.length > 0 && (
+          <section>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gradient mb-2">
+                5 Konten Terbaru
+              </h2>
+              <p className="text-muted-foreground">
+                Unggahan terbaru dari semua kategori
+              </p>
+            </div>
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg overflow-hidden">
+              <CardContent className="p-0">
+                <div className="divide-y divide-border/50">
+                  {latestContent.map((item) => (
+                    <button
+                      type="button"
+                      key={`${item.type}-${String(item.id)}`}
+                      className="w-full p-6 hover:bg-muted/30 cursor-pointer transition-smooth flex items-center justify-between gap-4 text-left"
+                      onClick={() => handleContentClick(item.type, item.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <Badge
+                          className={`${getContentTypeBadgeClass(item.type)} rounded-full`}
+                        >
+                          {getContentTypeLabel(item.type)}
+                        </Badge>
+                        <p className="font-semibold text-foreground flex-1">
+                          {item.title}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        {formatDistanceToNow(Number(item.date) / 1000000, {
+                          addSuffix: true,
+                          locale: id,
+                        })}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
+        {/* 48 LIVE UPDATE Terbaru */}
+        <section>
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-3xl font-bold text-gradient">
+              48 LIVE UPDATE Terbaru
             </h2>
             <button
-              onClick={() => navigate({ to: '/discuss' })}
-              className="text-sm font-medium text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
+              type="button"
+              onClick={() => navigate({ to: "/news" })}
+              className="text-sm font-semibold text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
             >
               Lihat Semua
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
+              <span className="group-hover:translate-x-1 transition-transform">
+                →
+              </span>
             </button>
           </div>
-          <div className="space-y-4">
-            {discussions.slice(0, 5).map((discussion) => (
-              <Card
-                key={discussion.id.toString()}
-                className="cursor-pointer glass-strong border-border/50 hover:border-primary/50 hover:neon-glow-hover transition-glow group"
-                onClick={() => navigate({ to: '/discuss/$discussionId', params: { discussionId: discussion.id.toString() } })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Badge variant="outline" className="border-primary/30">
-                          {discussion.category}
-                        </Badge>
-                      </div>
-                      <h3 className="mb-2 text-lg font-semibold group-hover:text-primary transition-smooth">
-                        {discussion.title}
-                      </h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
+          {sortedArticles.length === 0 ? (
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                Belum ada artikel tersedia
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {sortedArticles.slice(0, 3).map((article) => (
+                <Card
+                  key={article.id.toString()}
+                  className="group cursor-pointer overflow-hidden rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                  onClick={() =>
+                    navigate({
+                      to: "/news/$articleId",
+                      params: { articleId: article.id.toString() },
+                    })
+                  }
+                >
+                  <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/10 to-secondary/20 flex items-center justify-center">
+                    <Users className="h-16 w-16 text-primary/30" />
+                  </div>
+                  <CardContent className="p-6">
+                    <h3 className="mb-3 line-clamp-2 text-lg font-bold group-hover:text-primary transition-smooth">
+                      {article.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      {formatDistanceToNow(Number(article.date) / 1000000, {
+                        addSuffix: true,
+                        locale: id,
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* 48 LIVE RUMOR Terbaru */}
+        <section>
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-3xl font-bold text-gradient">
+              48 LIVE RUMOR Terbaru
+            </h2>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/rumors" })}
+              className="text-sm font-semibold text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
+            >
+              Lihat Semua
+              <span className="group-hover:translate-x-1 transition-transform">
+                →
+              </span>
+            </button>
+          </div>
+          {sortedRumors.length === 0 ? (
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                Belum ada rumor tersedia
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {sortedRumors.slice(0, 3).map((rumor) => (
+                <Card
+                  key={rumor.id.toString()}
+                  className="cursor-pointer rounded-3xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth group"
+                  onClick={() =>
+                    navigate({
+                      to: "/rumors/$rumorId",
+                      params: { rumorId: rumor.id.toString() },
+                    })
+                  }
+                >
+                  <CardContent className="p-6">
+                    <div className="mb-4">
+                      <Badge
+                        className={`${getStatusColor(rumor.status)} rounded-full`}
+                      >
+                        {getStatusLabel(rumor.status)}
+                      </Badge>
+                    </div>
+                    <h3 className="mb-3 line-clamp-2 text-lg font-bold group-hover:text-primary transition-smooth">
+                      {rumor.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      {formatDistanceToNow(Number(rumor.date) / 1000000, {
+                        addSuffix: true,
+                        locale: id,
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* 48 LIVE DISCUSS Terbaru */}
+        <section>
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-3xl font-bold text-gradient">
+              48 LIVE DISCUSS Terbaru
+            </h2>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/discuss" })}
+              className="text-sm font-semibold text-primary hover:text-accent transition-smooth flex items-center gap-1 group"
+            >
+              Lihat Semua
+              <span className="group-hover:translate-x-1 transition-transform">
+                →
+              </span>
+            </button>
+          </div>
+          {sortedDiscussions.length === 0 ? (
+            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                Belum ada diskusi tersedia
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {sortedDiscussions.slice(0, 3).map((discussion) => (
+                <Card
+                  key={discussion.id.toString()}
+                  className="cursor-pointer rounded-3xl border-2 border-secondary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth group"
+                  onClick={() =>
+                    navigate({
+                      to: "/discuss/$discussionId",
+                      params: { discussionId: discussion.id.toString() },
+                    })
+                  }
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="mb-3">
+                          <Badge className="bg-secondary/20 text-secondary border-secondary/30 rounded-full">
+                            {discussion.category}
+                          </Badge>
+                        </div>
+                        <h3 className="mb-2 text-lg font-bold group-hover:text-primary transition-smooth">
+                          {discussion.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Clock className="h-4 w-4" />
-                          {formatDistanceToNow(Number(discussion.timestamp) / 1000000, { addSuffix: true, locale: id })}
+                          {formatDistanceToNow(
+                            Number(discussion.timestamp) / 1000000,
+                            { addSuffix: true, locale: id },
+                          )}
                         </div>
                       </div>
                     </div>
-                    <MessageSquare className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-smooth" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

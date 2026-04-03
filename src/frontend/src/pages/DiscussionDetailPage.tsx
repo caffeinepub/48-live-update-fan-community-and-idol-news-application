@@ -1,42 +1,52 @@
-import { useParams, useNavigate } from '@tanstack/react-router';
-import { useGetDiscussion, useGetCommentsByContentId, useAddComment } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { Badge } from '../components/ui/badge';
-import { Skeleton } from '../components/ui/skeleton';
-import { Separator } from '../components/ui/separator';
-import { ArrowLeft, Clock, MessageSquare } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+import { ArrowLeft, Clock, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
+import { Skeleton } from "../components/ui/skeleton";
+import { Textarea } from "../components/ui/textarea";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useAddComment,
+  useGetCommentsByContentId,
+  useGetDiscussion,
+} from "../hooks/useQueries";
 
 export default function DiscussionDetailPage() {
-  const { discussionId } = useParams({ from: '/discuss/$discussionId' });
+  const { discussionId } = useParams({ from: "/discuss/$discussionId" });
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
-  const { data: discussion, isLoading } = useGetDiscussion(BigInt(discussionId));
-  const { data: comments, isLoading: commentsLoading } = useGetCommentsByContentId(BigInt(discussionId));
+  const { data: discussion, isLoading } = useGetDiscussion(
+    BigInt(discussionId),
+  );
+  const { data: comments, isLoading: commentsLoading } =
+    useGetCommentsByContentId(BigInt(discussionId));
   const addComment = useAddComment();
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
 
   const isAuthenticated = !!identity;
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) {
-      toast.error('Komentar tidak boleh kosong');
+      toast.error("Komentar tidak boleh kosong");
       return;
     }
 
     try {
-      await addComment.mutateAsync({ contentId: BigInt(discussionId), content: commentText.trim() });
-      setCommentText('');
-      toast.success('Komentar berhasil ditambahkan');
+      await addComment.mutateAsync({
+        contentId: BigInt(discussionId),
+        content: commentText.trim(),
+      });
+      setCommentText("");
+      toast.success("Komentar berhasil ditambahkan");
     } catch (error) {
-      toast.error('Gagal menambahkan komentar');
+      toast.error("Gagal menambahkan komentar");
       console.error(error);
     }
   };
@@ -63,14 +73,16 @@ export default function DiscussionDetailPage() {
     );
   }
 
-  const sortedComments = [...(comments || [])].sort((a, b) => Number(b.timestamp - a.timestamp));
+  const sortedComments = [...(comments || [])].sort((a, b) =>
+    Number(b.timestamp - a.timestamp),
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
-          onClick={() => navigate({ to: '/discuss' })}
+          onClick={() => navigate({ to: "/discuss" })}
           className="mb-6 gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -84,13 +96,18 @@ export default function DiscussionDetailPage() {
                 <Badge variant="outline">{discussion.category}</Badge>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  {formatDistanceToNow(Number(discussion.timestamp) / 1000000, { addSuffix: true, locale: id })}
+                  {formatDistanceToNow(Number(discussion.timestamp) / 1000000, {
+                    addSuffix: true,
+                    locale: id,
+                  })}
                 </div>
               </div>
               <h1 className="mb-4 text-3xl font-bold">{discussion.title}</h1>
               <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
                 <span>Dibuat oleh:</span>
-                <span className="font-medium text-foreground">{discussion.author.toString().slice(0, 8)}...</span>
+                <span className="font-medium text-foreground">
+                  {discussion.author.toString().slice(0, 8)}...
+                </span>
               </div>
               <div className="prose prose-lg dark:prose-invert max-w-none">
                 <p className="whitespace-pre-wrap">{discussion.content}</p>
@@ -104,7 +121,9 @@ export default function DiscussionDetailPage() {
               <CardContent className="p-6">
                 <div className="mb-6 flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
-                  <h2 className="text-xl font-semibold">Balasan ({sortedComments.length})</h2>
+                  <h2 className="text-xl font-semibold">
+                    Balasan ({sortedComments.length})
+                  </h2>
                 </div>
 
                 {isAuthenticated ? (
@@ -117,7 +136,7 @@ export default function DiscussionDetailPage() {
                       rows={3}
                     />
                     <Button type="submit" disabled={addComment.isPending}>
-                      {addComment.isPending ? 'Mengirim...' : 'Kirim Balasan'}
+                      {addComment.isPending ? "Mengirim..." : "Kirim Balasan"}
                     </Button>
                   </form>
                 ) : (
@@ -137,20 +156,30 @@ export default function DiscussionDetailPage() {
                     ))}
                   </div>
                 ) : sortedComments.length === 0 ? (
-                  <p className="text-center text-muted-foreground">Belum ada balasan</p>
+                  <p className="text-center text-muted-foreground">
+                    Belum ada balasan
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     {sortedComments.map((comment) => (
-                      <div key={comment.id.toString()} className="rounded-lg bg-muted/50 p-4">
+                      <div
+                        key={comment.id.toString()}
+                        className="rounded-lg bg-muted/50 p-4"
+                      >
                         <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                           <span className="font-medium text-foreground">
                             {comment.author.toString().slice(0, 8)}...
                           </span>
                           <span>•</span>
                           <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(Number(comment.timestamp) / 1000000, { addSuffix: true, locale: id })}
+                          {formatDistanceToNow(
+                            Number(comment.timestamp) / 1000000,
+                            { addSuffix: true, locale: id },
+                          )}
                         </div>
-                        <p className="whitespace-pre-wrap text-sm">{comment.content}</p>
+                        <p className="whitespace-pre-wrap text-sm">
+                          {comment.content}
+                        </p>
                       </div>
                     ))}
                   </div>

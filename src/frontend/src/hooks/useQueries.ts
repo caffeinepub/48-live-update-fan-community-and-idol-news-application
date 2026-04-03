@@ -1,16 +1,27 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useActor } from './useActor';
-import type { Article, Rumor, Discussion, Comment, Trending, Group, UserProfile, Status, UserRole, CreateArticleRequest, CreateRumorRequest, CreateDiscussionRequest } from '../backend';
-import { ExternalBlob } from '../backend';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  Article,
+  Comment,
+  CreateArticleRequest,
+  CreateDiscussionRequest,
+  CreateRumorRequest,
+  Discussion,
+  Group,
+  Rumor,
+  ScheduleWithGroup,
+  Status,
+  UserProfile,
+} from "../backend";
+import { useActor } from "./useActor";
 
 // User Profile Queries
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
 
   const query = useQuery<UserProfile | null>({
-    queryKey: ['currentUserProfile'],
+    queryKey: ["currentUserProfile"],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getCallerUserProfile();
     },
     enabled: !!actor && !actorFetching,
@@ -30,11 +41,11 @@ export function useSaveCallerUserProfile() {
 
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
     },
   });
 }
@@ -43,7 +54,7 @@ export function useIsCallerAdmin() {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
+    queryKey: ["isCallerAdmin"],
     queryFn: async () => {
       if (!actor) return false;
       return actor.isCallerAdmin();
@@ -52,26 +63,12 @@ export function useIsCallerAdmin() {
   });
 }
 
-// Homepage Content
-export function useGetHomepageContent() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery({
-    queryKey: ['homepageContent'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getHomepageContent();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
 // Articles
 export function useGetUnarchivedArticles() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Article[]>({
-    queryKey: ['articles'],
+    queryKey: ["articles"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getUnarchivedArticles();
@@ -84,9 +81,9 @@ export function useGetArticle(id: bigint) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Article>({
-    queryKey: ['article', id.toString()],
+    queryKey: ["article", id.toString()],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getArticle(id);
     },
     enabled: !!actor && !isFetching,
@@ -99,12 +96,11 @@ export function useCreateArticle() {
 
   return useMutation({
     mutationFn: async (request: CreateArticleRequest) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createArticle(request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
   });
 }
@@ -114,30 +110,32 @@ export function useUpdateArticle() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, title, image, content }: { id: bigint; title: string; image: ExternalBlob | null; content: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.updateArticle(id, title, image, content);
+    mutationFn: async ({
+      id,
+      title,
+      content,
+    }: { id: bigint; title: string; content: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateArticle(id, title, content);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['article'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: ["article"] });
     },
   });
 }
 
-export function useArchiveArticle() {
+export function useDeleteArticle() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.archiveArticle(id);
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteArticle(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
   });
 }
@@ -147,7 +145,7 @@ export function useGetUnarchivedRumors() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Rumor[]>({
-    queryKey: ['rumors'],
+    queryKey: ["rumors"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getUnarchivedRumors();
@@ -160,9 +158,9 @@ export function useGetRumor(id: bigint) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Rumor>({
-    queryKey: ['rumor', id.toString()],
+    queryKey: ["rumor", id.toString()],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getRumor(id);
     },
     enabled: !!actor && !isFetching,
@@ -175,12 +173,11 @@ export function useCreateRumor() {
 
   return useMutation({
     mutationFn: async (request: CreateRumorRequest) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createRumor(request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rumors'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["rumors"] });
     },
   });
 }
@@ -190,30 +187,49 @@ export function useUpdateRumor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, title, content, status }: { id: bigint; title: string; content: string; status: Status }) => {
-      if (!actor) throw new Error('Actor not available');
+    mutationFn: async ({
+      id,
+      title,
+      content,
+      status,
+    }: { id: bigint; title: string; content: string; status: Status }) => {
+      if (!actor) throw new Error("Actor not available");
       return actor.updateRumor(id, title, content, status);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rumors'] });
-      queryClient.invalidateQueries({ queryKey: ['rumor'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["rumors"] });
+      queryClient.invalidateQueries({ queryKey: ["rumor"] });
     },
   });
 }
 
-export function useArchiveRumor() {
+export function useUpdateRumorStatus() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: bigint; status: Status }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateRumorStatus(id, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rumors"] });
+      queryClient.invalidateQueries({ queryKey: ["rumor"] });
+    },
+  });
+}
+
+export function useDeleteRumor() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.archiveRumor(id);
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteRumor(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rumors'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["rumors"] });
     },
   });
 }
@@ -223,7 +239,7 @@ export function useGetUnarchivedDiscussions() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Discussion[]>({
-    queryKey: ['discussions'],
+    queryKey: ["discussions"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getUnarchivedDiscussions();
@@ -236,9 +252,9 @@ export function useGetDiscussion(id: bigint) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Discussion>({
-    queryKey: ['discussion', id.toString()],
+    queryKey: ["discussion", id.toString()],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getDiscussion(id);
     },
     enabled: !!actor && !isFetching,
@@ -251,28 +267,26 @@ export function useCreateDiscussion() {
 
   return useMutation({
     mutationFn: async (request: CreateDiscussionRequest) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createDiscussion(request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['discussions'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["discussions"] });
     },
   });
 }
 
-export function useArchiveDiscussion() {
+export function useDeleteDiscussion() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.archiveDiscussion(id);
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteDiscussion(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['discussions'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
+      queryClient.invalidateQueries({ queryKey: ["discussions"] });
     },
   });
 }
@@ -282,7 +296,7 @@ export function useGetCommentsByContentId(contentId: bigint) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Comment[]>({
-    queryKey: ['comments', contentId.toString()],
+    queryKey: ["comments", contentId.toString()],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getCommentsByContentId(contentId);
@@ -296,12 +310,17 @@ export function useAddComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contentId, content }: { contentId: bigint; content: string }) => {
-      if (!actor) throw new Error('Actor not available');
+    mutationFn: async ({
+      contentId,
+      content,
+    }: { contentId: bigint; content: string }) => {
+      if (!actor) throw new Error("Actor not available");
       return actor.addComment(contentId, content);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['comments', variables.contentId.toString()] });
+      queryClient.invalidateQueries({
+        queryKey: ["comments", variables.contentId.toString()],
+      });
     },
   });
 }
@@ -312,58 +331,40 @@ export function useArchiveComment() {
 
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.archiveComment(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
     },
   });
 }
 
-// Trending
-export function useGetAllTrending() {
+// Upcoming Events
+export function useGetAllUpcomingEvents() {
   const { actor, isFetching } = useActor();
 
-  return useQuery<Trending[]>({
-    queryKey: ['trending'],
+  return useQuery<ScheduleWithGroup[]>({
+    queryKey: ["upcomingEvents"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllTrending();
+      return actor.getAllUpcomingEvents();
     },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useAddTrending() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
+// Search
+export function useSearchContent(query: string) {
+  const { actor, isFetching } = useActor();
 
-  return useMutation({
-    mutationFn: async ({ contentId, contentType }: { contentId: bigint; contentType: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.addTrending(contentId, contentType);
+  return useQuery({
+    queryKey: ["search", query],
+    queryFn: async () => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.searchContent(query);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trending'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
-    },
-  });
-}
-
-export function useRemoveTrending() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.removeTrending(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trending'] });
-      queryClient.invalidateQueries({ queryKey: ['homepageContent'] });
-    },
+    enabled: !!actor && !isFetching && query.length > 0,
   });
 }
 
@@ -372,7 +373,7 @@ export function useGetAllGroups() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Group[]>({
-    queryKey: ['groups'],
+    queryKey: ["groups"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllGroups();
@@ -385,9 +386,9 @@ export function useGetGroup(name: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Group>({
-    queryKey: ['group', name],
+    queryKey: ["group", name],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getGroup(name);
     },
     enabled: !!actor && !isFetching && !!name,
@@ -400,11 +401,12 @@ export function useCreateGroup() {
 
   return useMutation({
     mutationFn: async (group: Group) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.createGroup(group);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingEvents"] });
     },
   });
 }
@@ -415,12 +417,13 @@ export function useUpdateGroup() {
 
   return useMutation({
     mutationFn: async (group: Group) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.updateGroup(group);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
-      queryClient.invalidateQueries({ queryKey: ['group', variables.name] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["group", variables.name] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingEvents"] });
     },
   });
 }
@@ -431,11 +434,35 @@ export function useDeleteGroup() {
 
   return useMutation({
     mutationFn: async (name: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.deleteGroup(name);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingEvents"] });
+    },
+  });
+}
+
+export function useRenameGroup() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      oldName,
+      newName,
+    }: { oldName: string; newName: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      await actor.renameGroup(oldName, newName);
+      return { oldName, newName };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["group", data.oldName] });
+      queryClient.invalidateQueries({ queryKey: ["group", data.newName] });
+      queryClient.removeQueries({ queryKey: ["group", data.oldName] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingEvents"] });
     },
   });
 }

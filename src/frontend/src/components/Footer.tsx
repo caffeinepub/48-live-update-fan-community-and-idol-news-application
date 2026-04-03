@@ -1,13 +1,15 @@
+import { Heart } from "lucide-react";
+
 export default function Footer() {
   return (
-    <footer className="border-t border-border/50 glass-strong">
+    <footer className="border-t bg-gradient-to-br from-card to-muted/30 mt-auto">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center gap-4 text-center">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>© 2026. 48 LIVE UPDATE Indonesia</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Platform komunitas penggemar 48 Group Indonesia
+        <div className="text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            © 2026. 48 LIVE UPDATE Indonesia
+          </p>
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-2">
+            Build For 48 Fans
           </p>
         </div>
       </div>
