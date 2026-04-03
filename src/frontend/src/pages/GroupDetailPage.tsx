@@ -38,6 +38,11 @@ import {
   useUpdateGroup,
 } from "../hooks/useQueries";
 
+function isTraineeTeam(teamName: string): boolean {
+  const lower = teamName.toLowerCase();
+  return lower.includes("trainee") || lower.includes("kenkyuusei");
+}
+
 export default function GroupDetailPage() {
   const { groupName } = useParams({ from: "/groups/$groupName" });
   const navigate = useNavigate();
@@ -52,19 +57,38 @@ export default function GroupDetailPage() {
   const [setlistTitle, setSetlistTitle] = useState("");
   const [setlistTracks, setSetlistTracks] = useState<string[]>([""]);
 
-  // Sort members alphabetically by full name and separate by team
-  const sortedMembers = useMemo(() => {
-    if (!group) return { teamMembers: [], trainees: [] };
+  // Group members dynamically by their actual team field value
+  const teamGroups = useMemo(() => {
+    if (!group) return [];
 
-    const teamMembers = group.members
-      .filter((m) => !m.team.toLowerCase().includes("trainee"))
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, "id"));
+    const grouped: Record<string, Member[]> = {};
+    for (const member of group.members) {
+      const teamKey = member.team.trim() || "Tanpa Tim";
+      if (!grouped[teamKey]) grouped[teamKey] = [];
+      grouped[teamKey].push(member);
+    }
 
-    const trainees = group.members
-      .filter((m) => m.team.toLowerCase().includes("trainee"))
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, "id"));
+    // Sort members alphabetically within each team
+    for (const teamKey of Object.keys(grouped)) {
+      grouped[teamKey].sort((a, b) =>
+        a.fullName.localeCompare(b.fullName, "id"),
+      );
+    }
 
-    return { teamMembers, trainees };
+    // Sort team names: non-trainee teams first (alphabetical), trainee/kenkyuusei last
+    const sortedTeamNames = Object.keys(grouped).sort((a, b) => {
+      const aIsTrainee = isTraineeTeam(a);
+      const bIsTrainee = isTraineeTeam(b);
+      if (aIsTrainee && !bIsTrainee) return 1;
+      if (!aIsTrainee && bIsTrainee) return -1;
+      return a.localeCompare(b, "id");
+    });
+
+    return sortedTeamNames.map((teamName) => ({
+      teamName,
+      members: grouped[teamName],
+      isTrainee: isTraineeTeam(teamName),
+    }));
   }, [group]);
 
   const handleAddSetlist = () => {
@@ -283,117 +307,84 @@ export default function GroupDetailPage() {
 
           <TabsContent value="members">
             <div className="space-y-8">
-              {/* Team Members */}
-              {sortedMembers.teamMembers.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-gradient mb-6">
-                    Member Team
-                  </h2>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sortedMembers.teamMembers.map((member, index) => (
-                      <Card
-                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
-                        key={index}
-                        className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+              {teamGroups.length > 0 ? (
+                teamGroups.map(({ teamName, members, isTrainee }) => (
+                  <div key={teamName}>
+                    <div className="flex items-center gap-3 mb-6">
+                      <h2 className="text-2xl font-bold text-gradient">
+                        {teamName}
+                      </h2>
+                      <Badge
+                        className={
+                          isTrainee
+                            ? "bg-accent/20 text-accent border-accent/30 rounded-full text-xs"
+                            : "bg-primary/20 text-primary border-primary/30 rounded-full text-xs"
+                        }
                       >
-                        <CardContent className="p-6">
-                          <h3 className="mb-1 text-lg font-bold text-foreground">
-                            {member.fullName}
-                          </h3>
-                          <p className="mb-3 text-sm text-primary font-medium">
-                            {member.nickname}
-                          </p>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-primary/20 text-primary border-primary/30 rounded-full">
-                                {member.team}
-                              </Badge>
-                            </div>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Generasi:
-                              </span>{" "}
-                              {member.generation}
+                        {members.length} member
+                      </Badge>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {members.map((member, index) => (
+                        <Card
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
+                          key={index}
+                          className={`rounded-2xl border-2 ${
+                            isTrainee ? "border-accent/20" : "border-primary/20"
+                          } bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth`}
+                        >
+                          <CardContent className="p-6">
+                            <h3 className="mb-1 text-lg font-bold text-foreground">
+                              {member.fullName}
+                            </h3>
+                            <p
+                              className={`mb-3 text-sm font-medium ${
+                                isTrainee ? "text-accent" : "text-primary"
+                              }`}
+                            >
+                              {member.nickname}
                             </p>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Lahir:
-                              </span>{" "}
-                              {format(
-                                Number(member.birthdate) / 1000000,
-                                "dd MMMM yyyy",
-                                { locale: id },
-                              )}
-                            </p>
-                            {member.bio && (
-                              <p className="mt-3 text-muted-foreground">
-                                {member.bio}
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={
+                                    isTrainee
+                                      ? "bg-accent/20 text-accent border-accent/30 rounded-full"
+                                      : "bg-primary/20 text-primary border-primary/30 rounded-full"
+                                  }
+                                >
+                                  {member.team}
+                                </Badge>
+                              </div>
+                              <p>
+                                <span className="text-muted-foreground">
+                                  Generasi:
+                                </span>{" "}
+                                {member.generation}
                               </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Trainees */}
-              {sortedMembers.trainees.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-gradient mb-6">
-                    Member Trainee
-                  </h2>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sortedMembers.trainees.map((member, index) => (
-                      <Card
-                        // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
-                        key={index}
-                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
-                      >
-                        <CardContent className="p-6">
-                          <h3 className="mb-1 text-lg font-bold text-foreground">
-                            {member.fullName}
-                          </h3>
-                          <p className="mb-3 text-sm text-accent font-medium">
-                            {member.nickname}
-                          </p>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-accent/20 text-accent border-accent/30 rounded-full">
-                                {member.team}
-                              </Badge>
-                            </div>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Generasi:
-                              </span>{" "}
-                              {member.generation}
-                            </p>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Lahir:
-                              </span>{" "}
-                              {format(
-                                Number(member.birthdate) / 1000000,
-                                "dd MMMM yyyy",
-                                { locale: id },
-                              )}
-                            </p>
-                            {member.bio && (
-                              <p className="mt-3 text-muted-foreground">
-                                {member.bio}
+                              <p>
+                                <span className="text-muted-foreground">
+                                  Lahir:
+                                </span>{" "}
+                                {format(
+                                  Number(member.birthdate) / 1000000,
+                                  "dd MMMM yyyy",
+                                  { locale: id },
+                                )}
                               </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                              {member.bio && (
+                                <p className="mt-3 text-muted-foreground">
+                                  {member.bio}
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {group.members.length === 0 && (
+                ))
+              ) : (
                 <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
                   <CardContent className="p-12 text-center">
                     <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
