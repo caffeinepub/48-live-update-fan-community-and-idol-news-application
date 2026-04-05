@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   Calendar,
   Edit,
+  ExternalLink,
+  Globe,
   MapPin,
   Plus,
   Trash2,
@@ -37,6 +39,92 @@ import {
   useIsCallerAdmin,
   useUpdateGroup,
 } from "../hooks/useQueries";
+
+// Website resmi masing-masing grup 48
+const GROUP_OFFICIAL_WEBSITES: Record<string, { url: string; label: string }> =
+  {
+    AKB48: { url: "https://www.akb48.co.jp", label: "akb48.co.jp" },
+    SKE48: { url: "https://ske48.co.jp", label: "ske48.co.jp" },
+    NMB48: { url: "https://www.nmb48.com", label: "nmb48.com" },
+    HKT48: { url: "https://hkt48.jp", label: "hkt48.jp" },
+    NGT48: { url: "https://ngt48.jp", label: "ngt48.jp" },
+    STU48: { url: "https://stu48.com", label: "stu48.com" },
+    JKT48: { url: "https://www.jkt48.com", label: "jkt48.com" },
+    BNK48: { url: "https://www.bnk48.com", label: "bnk48.com" },
+    MNL48: { url: "https://www.mnl48.com", label: "mnl48.com" },
+    CGM48: { url: "https://www.cgm48.com", label: "cgm48.com" },
+    KLP48: { url: "https://www.klp48.com", label: "klp48.com" },
+    TSH48: { url: "https://www.tsh48.com", label: "tsh48.com" },
+    TPE48: { url: "https://www.tpe48.com", label: "tpe48.com" },
+  };
+
+// Sosial media resmi per grup
+const GROUP_SOCIAL_MEDIA: Record<string, { platform: string; url: string }[]> =
+  {
+    AKB48: [
+      { platform: "Twitter/X", url: "https://twitter.com/AKB48" },
+      { platform: "Instagram", url: "https://www.instagram.com/akb48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@akb48" },
+    ],
+    SKE48: [
+      { platform: "Twitter/X", url: "https://twitter.com/SKE48_official" },
+      { platform: "Instagram", url: "https://www.instagram.com/ske48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@ske48" },
+    ],
+    NMB48: [
+      { platform: "Twitter/X", url: "https://twitter.com/nmb48_official" },
+      { platform: "Instagram", url: "https://www.instagram.com/nmb48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@nmb48" },
+    ],
+    HKT48: [
+      { platform: "Twitter/X", url: "https://twitter.com/hkt48_official" },
+      { platform: "Instagram", url: "https://www.instagram.com/hkt48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@hkt48" },
+    ],
+    NGT48: [
+      { platform: "Twitter/X", url: "https://twitter.com/NGT48_official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@NGT48" },
+    ],
+    STU48: [
+      { platform: "Twitter/X", url: "https://twitter.com/STU48_official" },
+      { platform: "Instagram", url: "https://www.instagram.com/stu48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@stu48" },
+    ],
+    JKT48: [
+      { platform: "Twitter/X", url: "https://twitter.com/JKT48" },
+      { platform: "Instagram", url: "https://www.instagram.com/jkt48" },
+      { platform: "YouTube", url: "https://www.youtube.com/@JKT48" },
+      { platform: "TikTok", url: "https://www.tiktok.com/@jkt48official" },
+    ],
+    BNK48: [
+      { platform: "Twitter/X", url: "https://twitter.com/BNK48" },
+      { platform: "Instagram", url: "https://www.instagram.com/bnk48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@BNK48" },
+      { platform: "TikTok", url: "https://www.tiktok.com/@bnk48official" },
+    ],
+    MNL48: [
+      { platform: "Twitter/X", url: "https://twitter.com/MNL48" },
+      { platform: "Instagram", url: "https://www.instagram.com/mnl48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@MNL48" },
+    ],
+    CGM48: [
+      { platform: "Instagram", url: "https://www.instagram.com/cgm48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@CGM48" },
+      { platform: "TikTok", url: "https://www.tiktok.com/@cgm48official" },
+    ],
+    KLP48: [
+      { platform: "Instagram", url: "https://www.instagram.com/klp48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@KLP48" },
+    ],
+    TSH48: [
+      { platform: "Instagram", url: "https://www.instagram.com/tsh48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@TSH48" },
+    ],
+    TPE48: [
+      { platform: "Instagram", url: "https://www.instagram.com/tpe48official" },
+      { platform: "YouTube", url: "https://www.youtube.com/@TPE48" },
+    ],
+  };
 
 function isTraineeTeam(teamName: string): boolean {
   const lower = teamName.toLowerCase();
@@ -90,6 +178,9 @@ export default function GroupDetailPage() {
       isTrainee: isTraineeTeam(teamName),
     }));
   }, [group]);
+
+  const officialSite = group ? GROUP_OFFICIAL_WEBSITES[group.name] : null;
+  const socialMedia = group ? GROUP_SOCIAL_MEDIA[group.name] || [] : [];
 
   const handleAddSetlist = () => {
     setEditingSetlistIndex(null);
@@ -200,7 +291,7 @@ export default function GroupDetailPage() {
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Button>
-        <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+        <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
           <CardContent className="flex h-64 items-center justify-center">
             <div className="text-center">
               <p className="mb-4 text-muted-foreground">
@@ -217,7 +308,7 @@ export default function GroupDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
@@ -229,7 +320,7 @@ export default function GroupDetailPage() {
         </Button>
 
         {/* Group Header */}
-        <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg mb-8">
+        <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg mb-8">
           <CardContent className="p-8">
             <div className="mb-6 flex h-48 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20">
               <h1 className="text-5xl font-bold text-gradient">{group.name}</h1>
@@ -287,21 +378,39 @@ export default function GroupDetailPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="members" className="space-y-6">
-          <TabsList className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 grid w-full grid-cols-5">
-            <TabsTrigger value="members" className="rounded-xl">
+          <TabsList className="rounded-2xl border border-border bg-card grid w-full grid-cols-6">
+            <TabsTrigger
+              value="members"
+              className="rounded-xl text-xs sm:text-sm"
+            >
               Member
             </TabsTrigger>
-            <TabsTrigger value="schedules" className="rounded-xl">
+            <TabsTrigger
+              value="schedules"
+              className="rounded-xl text-xs sm:text-sm"
+            >
               Jadwal
             </TabsTrigger>
-            <TabsTrigger value="news" className="rounded-xl">
+            <TabsTrigger value="news" className="rounded-xl text-xs sm:text-sm">
               Berita
             </TabsTrigger>
-            <TabsTrigger value="discography" className="rounded-xl">
+            <TabsTrigger
+              value="discography"
+              className="rounded-xl text-xs sm:text-sm"
+            >
               Diskografi
             </TabsTrigger>
-            <TabsTrigger value="setlists" className="rounded-xl">
+            <TabsTrigger
+              value="setlists"
+              className="rounded-xl text-xs sm:text-sm"
+            >
               Setlist
+            </TabsTrigger>
+            <TabsTrigger
+              value="official"
+              className="rounded-xl text-xs sm:text-sm"
+            >
+              Website
             </TabsTrigger>
           </TabsList>
 
@@ -331,7 +440,7 @@ export default function GroupDetailPage() {
                           key={index}
                           className={`rounded-2xl border-2 ${
                             isTrainee ? "border-accent/20" : "border-primary/20"
-                          } bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth`}
+                          } bg-card shadow-lg hover:shadow-xl transition-smooth`}
                         >
                           <CardContent className="p-6">
                             <h3 className="mb-1 text-lg font-bold text-foreground">
@@ -385,7 +494,7 @@ export default function GroupDetailPage() {
                   </div>
                 ))
               ) : (
-                <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+                <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
                   <CardContent className="p-12 text-center">
                     <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                     <p className="text-lg text-muted-foreground">
@@ -398,7 +507,7 @@ export default function GroupDetailPage() {
           </TabsContent>
 
           <TabsContent value="schedules">
-            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
               <CardContent className="p-6">
                 <h2 className="text-2xl font-bold text-gradient mb-6">
                   Jadwal & Event
@@ -416,7 +525,7 @@ export default function GroupDetailPage() {
                       <Card
                         // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
                         key={index}
-                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                        className="rounded-2xl border-2 border-accent/20 bg-card shadow-lg hover:shadow-xl transition-smooth"
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start gap-4">
@@ -454,7 +563,7 @@ export default function GroupDetailPage() {
           </TabsContent>
 
           <TabsContent value="news">
-            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
               <CardContent className="p-6">
                 <h2 className="text-2xl font-bold text-gradient mb-6">
                   Berita Grup
@@ -470,7 +579,7 @@ export default function GroupDetailPage() {
                     {group.news.map((news) => (
                       <Card
                         key={news.id.toString()}
-                        className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                        className="rounded-2xl border-2 border-primary/20 bg-card shadow-lg hover:shadow-xl transition-smooth"
                       >
                         <CardContent className="p-4">
                           <div className="mb-2 text-sm text-primary font-medium">
@@ -497,7 +606,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="discography">
             <div className="space-y-6">
-              <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+              <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
                 <CardContent className="p-6">
                   <h2 className="text-2xl font-bold text-gradient mb-6">
                     Single
@@ -512,7 +621,7 @@ export default function GroupDetailPage() {
                         <Card
                           // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
                           key={index}
-                          className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                          className="rounded-2xl border-2 border-accent/20 bg-card shadow-lg hover:shadow-xl transition-smooth"
                         >
                           <CardContent className="p-4">
                             <h3 className="mb-1 font-semibold text-foreground">
@@ -544,7 +653,7 @@ export default function GroupDetailPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+              <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
                 <CardContent className="p-6">
                   <h2 className="text-2xl font-bold text-gradient mb-6">
                     Album
@@ -559,7 +668,7 @@ export default function GroupDetailPage() {
                         <Card
                           // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
                           key={index}
-                          className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                          className="rounded-2xl border-2 border-accent/20 bg-card shadow-lg hover:shadow-xl transition-smooth"
                         >
                           <CardContent className="p-4">
                             <h3 className="mb-1 font-semibold text-foreground">
@@ -594,7 +703,7 @@ export default function GroupDetailPage() {
           </TabsContent>
 
           <TabsContent value="setlists">
-            <Card className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-card to-muted/30 shadow-lg">
+            <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
               <CardContent className="p-6">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gradient">
@@ -603,7 +712,7 @@ export default function GroupDetailPage() {
                   {isAdmin && (
                     <Button
                       onClick={handleAddSetlist}
-                      className="gap-2 rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                      className="gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     >
                       <Plus className="h-4 w-4" />
                       Tambah Setlist
@@ -622,7 +731,7 @@ export default function GroupDetailPage() {
                       <Card
                         // biome-ignore lint/suspicious/noArrayIndexKey: ordered list uses index as key
                         key={index}
-                        className="rounded-2xl border-2 border-accent/20 bg-gradient-to-br from-card to-muted/30 shadow-lg hover:shadow-xl transition-smooth"
+                        className="rounded-2xl border-2 border-accent/20 bg-card shadow-lg hover:shadow-xl transition-smooth"
                       >
                         <CardContent className="p-4">
                           <div className="mb-3 flex items-start justify-between">
@@ -668,6 +777,97 @@ export default function GroupDetailPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tab Website Resmi */}
+          <TabsContent value="official">
+            <div className="space-y-6">
+              {/* Website Resmi */}
+              <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-lg">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <Globe className="h-6 w-6 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gradient">
+                      Website Resmi {group.name}
+                    </h2>
+                  </div>
+                  {officialSite ? (
+                    <div className="space-y-4">
+                      <p className="text-muted-foreground">
+                        Kunjungi website resmi {group.name} untuk informasi
+                        terbaru mengenai jadwal, member, single, album, dan
+                        konten eksklusif lainnya.
+                      </p>
+                      <a
+                        href={officialSite.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-smooth shadow-lg"
+                      >
+                        <Globe className="h-5 w-5" />
+                        <span>{officialSite.label}</span>
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-lg text-muted-foreground">
+                        Website resmi untuk {group.name} belum tersedia
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Informasi akan segera diperbarui
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Media Sosial Resmi */}
+              {socialMedia.length > 0 && (
+                <Card className="rounded-3xl border-2 border-accent/20 bg-card shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 rounded-xl bg-accent/10">
+                        <Users className="h-6 w-6 text-accent" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-gradient">
+                        Media Sosial Resmi
+                      </h2>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {socialMedia.map((social) => (
+                        <a
+                          key={social.platform}
+                          href={social.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border-2 border-accent/20 bg-card hover:bg-accent/10 hover:border-accent/40 transition-smooth group"
+                        >
+                          <span className="font-semibold text-foreground group-hover:text-accent transition-smooth">
+                            {social.platform}
+                          </span>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-smooth" />
+                        </a>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Info Banner */}
+              <Card className="rounded-2xl border border-border bg-muted/30">
+                <CardContent className="p-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Seluruh link di atas mengarah ke website dan media sosial
+                    resmi {group.name}. Pastikan kamu mengakses informasi dari
+                    sumber resmi untuk menghindari informasi yang tidak akurat.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -742,7 +942,7 @@ export default function GroupDetailPage() {
             <Button
               onClick={handleSaveSetlist}
               disabled={updateGroup.isPending}
-              className="rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {updateGroup.isPending ? "Menyimpan..." : "Simpan"}
             </Button>
